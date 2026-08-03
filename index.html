@@ -18,11 +18,9 @@
 
     body {
       font-family:
-        "Pretendard",
         "Noto Sans KR",
         Arial,
         sans-serif;
-
       background: #f4f7fb;
       color: #1f2937;
     }
@@ -49,36 +47,25 @@
       padding: 28px;
     }
 
-    .filter-section {
-      display: grid;
-      grid-template-columns:
-        repeat(4, minmax(160px, 1fr));
-      gap: 14px;
-
+    .status-box {
       background: #ffffff;
-      padding: 20px;
-      border-radius: 16px;
-      margin-bottom: 22px;
+      border-radius: 14px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
       box-shadow:
-        0 4px 18px rgba(0, 0, 0, 0.05);
+        0 4px 16px rgba(0, 0, 0, 0.05);
     }
 
-    .filter-box label {
-      display: block;
-      margin-bottom: 7px;
-      font-size: 13px;
-      font-weight: 700;
+    .status-box.loading {
+      color: #1d4ed8;
     }
 
-    .filter-box input,
-    .filter-box select {
-      width: 100%;
-      height: 42px;
-      padding: 0 12px;
+    .status-box.success {
+      color: #15803d;
+    }
 
-      border: 1px solid #d1d5db;
-      border-radius: 9px;
-      background: #ffffff;
+    .status-box.error {
+      color: #b91c1c;
     }
 
     .kpi-grid {
@@ -93,7 +80,6 @@
       background: #ffffff;
       padding: 22px;
       border-radius: 16px;
-
       box-shadow:
         0 4px 18px rgba(0, 0, 0, 0.05);
     }
@@ -109,42 +95,35 @@
       font-weight: 800;
     }
 
-    .dashboard-grid {
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 18px;
-      margin-bottom: 22px;
-    }
-
     .panel {
       background: #ffffff;
       border-radius: 16px;
       padding: 22px;
-
+      margin-bottom: 22px;
       box-shadow:
         0 4px 18px rgba(0, 0, 0, 0.05);
     }
 
     .panel h2 {
       font-size: 18px;
-      margin-bottom: 18px;
+      margin-bottom: 16px;
     }
 
-    .empty-chart {
-      height: 280px;
-      border: 2px dashed #dbe3ef;
-      border-radius: 12px;
+    .preview-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
 
-      display: flex;
-      justify-content: center;
-      align-items: center;
+    .preview-table th,
+    .preview-table td {
+      border-bottom: 1px solid #e5e7eb;
+      padding: 10px 12px;
+      text-align: left;
+      font-size: 13px;
+    }
 
-      color: #94a3b8;
+    .preview-table th {
       background: #f8fafc;
-    }
-
-    .wide-panel {
-      margin-bottom: 22px;
     }
 
     footer {
@@ -155,26 +134,17 @@
     }
 
     @media (max-width: 900px) {
-      .filter-section,
       .kpi-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
-      .dashboard-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns:
+          repeat(2, 1fr);
       }
     }
 
     @media (max-width: 560px) {
-      header {
-        padding: 20px;
-      }
-
       main {
         padding: 16px;
       }
 
-      .filter-section,
       .kpi-grid {
         grid-template-columns: 1fr;
       }
@@ -186,116 +156,81 @@
 
   <header>
     <h1>📊 보보 판매 Dashboard V2</h1>
-    <p>Raw_통합 기반 판매실적 분석 대시보드</p>
+    <p>Google Sheets DashboardData 기반</p>
   </header>
 
   <main>
 
-    <section class="filter-section">
-
-      <div class="filter-box">
-        <label for="startDate">시작일</label>
-        <input
-          type="date"
-          id="startDate"
-        >
-      </div>
-
-      <div class="filter-box">
-        <label for="endDate">종료일</label>
-        <input
-          type="date"
-          id="endDate"
-        >
-      </div>
-
-      <div class="filter-box">
-        <label for="marketFilter">마켓</label>
-        <select id="marketFilter">
-          <option value="">전체 마켓</option>
-        </select>
-      </div>
-
-      <div class="filter-box">
-        <label for="categoryFilter">카테고리</label>
-        <select id="categoryFilter">
-          <option value="">전체 카테고리</option>
-        </select>
-      </div>
-
+    <section
+      id="statusBox"
+      class="status-box loading"
+    >
+      데이터를 불러오는 중입니다.
     </section>
 
     <section class="kpi-grid">
 
       <article class="kpi-card">
         <div class="kpi-title">총매출</div>
-        <div class="kpi-value">0원</div>
+        <div
+          id="totalSales"
+          class="kpi-value"
+        >
+          0원
+        </div>
       </article>
 
       <article class="kpi-card">
-        <div class="kpi-title">주문수</div>
-        <div class="kpi-value">0건</div>
+        <div class="kpi-title">총주문수</div>
+        <div
+          id="totalOrders"
+          class="kpi-value"
+        >
+          0건
+        </div>
       </article>
 
       <article class="kpi-card">
         <div class="kpi-title">판매수량</div>
-        <div class="kpi-value">0개</div>
+        <div
+          id="totalQuantity"
+          class="kpi-value"
+        >
+          0개
+        </div>
       </article>
 
       <article class="kpi-card">
         <div class="kpi-title">평균객단가</div>
-        <div class="kpi-value">0원</div>
-      </article>
-
-    </section>
-
-    <section class="dashboard-grid">
-
-      <article class="panel">
-        <h2>일별 매출 추이</h2>
-        <div class="empty-chart">
-          Google Sheet 연결 후 차트가 표시됩니다.
-        </div>
-      </article>
-
-      <article class="panel">
-        <h2>카테고리별 매출</h2>
-        <div class="empty-chart">
-          카테고리 차트 영역
+        <div
+          id="averageOrderValue"
+          class="kpi-value"
+        >
+          0원
         </div>
       </article>
 
     </section>
 
-    <section class="dashboard-grid">
+    <section class="panel">
+      <h2>데이터 미리보기</h2>
 
-      <article class="panel">
-        <h2>마켓별 매출</h2>
-        <div class="empty-chart">
-          마켓별 차트 영역
-        </div>
-      </article>
+      <div style="overflow-x:auto;">
+        <table class="preview-table">
+          <thead>
+            <tr>
+              <th>주문일자</th>
+              <th>마켓</th>
+              <th>카테고리</th>
+              <th>모델</th>
+              <th>수량</th>
+              <th>정산가</th>
+            </tr>
+          </thead>
 
-      <article class="panel">
-        <h2>주문 진행 현황</h2>
-        <div class="empty-chart">
-          발주 · 재진행 · 물류 · 택배
-        </div>
-      </article>
-
-    </section>
-
-    <section class="panel wide-panel">
-      <h2>TOP 20 모델</h2>
-      <div class="empty-chart">
-        모델별 판매 순위가 표시될 영역입니다.
-      </div>
-    </section>
-
-    <section class="panel wide-panel">
-      <h2>중복 주문 관리</h2>
-      <div class="empty-chart">
-        Raw_통합의 중복 주문이 표시될 영역입니다.
+          <tbody id="previewBody">
+          </tbody>
+        </table>
       </div>
     </section>
 
@@ -304,6 +239,225 @@
   <footer>
     보보 판매 Dashboard V2
   </footer>
+
+  <script src="config.js"></script>
+  <script src="sheet.js"></script>
+
+  <script>
+    function parseNumber(value) {
+      const text = String(value || "")
+        .replace(/"/g, "")
+        .replace(/,/g, "")
+        .replace(/원/g, "")
+        .trim();
+
+      const number = Number(text);
+
+      return Number.isFinite(number)
+        ? number
+        : 0;
+    }
+
+    function formatNumber(value) {
+      return new Intl.NumberFormat(
+        "ko-KR"
+      ).format(value);
+    }
+
+    function cleanCell(value) {
+      return String(value || "")
+        .replace(/^"|"$/g, "")
+        .trim();
+    }
+
+    function updateDashboard(rows) {
+      if (!rows || rows.length < 2) {
+        throw new Error(
+          "불러온 데이터가 없습니다."
+        );
+      }
+
+      const headers = rows[0].map(
+        cleanCell
+      );
+
+      const dateIndex =
+        headers.indexOf("주문일자");
+
+      const marketIndex =
+        headers.indexOf("마켓");
+
+      const categoryIndex =
+        headers.indexOf("카테고리");
+
+      const modelIndex =
+        headers.indexOf("모델");
+
+      const quantityIndex =
+        headers.indexOf("수량");
+
+      const settlementIndex =
+        headers.indexOf("정산가");
+
+      if (
+        quantityIndex === -1 ||
+        settlementIndex === -1
+      ) {
+        throw new Error(
+          "수량 또는 정산가 열을 찾지 못했습니다."
+        );
+      }
+
+      const dataRows = rows
+        .slice(1)
+        .filter(row =>
+          row.some(cell =>
+            cleanCell(cell) !== ""
+          )
+        );
+
+      let totalSales = 0;
+      let totalQuantity = 0;
+
+      dataRows.forEach(row => {
+        totalQuantity +=
+          parseNumber(
+            row[quantityIndex]
+          );
+
+        totalSales +=
+          parseNumber(
+            row[settlementIndex]
+          );
+      });
+
+      const totalOrders =
+        dataRows.length;
+
+      const averageOrderValue =
+        totalOrders > 0
+          ? Math.round(
+              totalSales /
+              totalOrders
+            )
+          : 0;
+
+      document
+        .getElementById("totalSales")
+        .textContent =
+        formatNumber(totalSales) +
+        "원";
+
+      document
+        .getElementById("totalOrders")
+        .textContent =
+        formatNumber(totalOrders) +
+        "건";
+
+      document
+        .getElementById("totalQuantity")
+        .textContent =
+        formatNumber(totalQuantity) +
+        "개";
+
+      document
+        .getElementById(
+          "averageOrderValue"
+        )
+        .textContent =
+        formatNumber(
+          averageOrderValue
+        ) + "원";
+
+      const previewBody =
+        document.getElementById(
+          "previewBody"
+        );
+
+      previewBody.innerHTML = "";
+
+      dataRows
+        .slice(0, 20)
+        .forEach(row => {
+          const tr =
+            document.createElement("tr");
+
+          const cells = [
+            row[dateIndex],
+            row[marketIndex],
+            row[categoryIndex],
+            row[modelIndex],
+            row[quantityIndex],
+            row[settlementIndex]
+          ];
+
+          cells.forEach(
+            (cell, index) => {
+              const td =
+                document.createElement(
+                  "td"
+                );
+
+              if (
+                index === 4 ||
+                index === 5
+              ) {
+                td.textContent =
+                  formatNumber(
+                    parseNumber(cell)
+                  );
+              } else {
+                td.textContent =
+                  cleanCell(cell);
+              }
+
+              tr.appendChild(td);
+            }
+          );
+
+          previewBody.appendChild(tr);
+        });
+
+      const statusBox =
+        document.getElementById(
+          "statusBox"
+        );
+
+      statusBox.className =
+        "status-box success";
+
+      statusBox.textContent =
+        "데이터 연결 완료 · " +
+        formatNumber(totalOrders) +
+        "건을 불러왔습니다.";
+    }
+
+    async function startDashboard() {
+      const statusBox =
+        document.getElementById(
+          "statusBox"
+        );
+
+      try {
+        const rows =
+          await loadSheetData();
+
+        updateDashboard(rows);
+
+      } catch (error) {
+        console.error(error);
+
+        statusBox.className =
+          "status-box error";
+
+        statusBox.textContent =
+          "데이터 연결 실패: " +
+          error.message;
+      }
+    }
+
+    startDashboard();
+  </script>
 
 </body>
 </html>
