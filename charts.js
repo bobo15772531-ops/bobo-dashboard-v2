@@ -7,7 +7,7 @@ let monthlySalesChart = null;
 let categorySalesChart = null;
 let topModelChart = null;
 let marketSalesChart = null;
-
+let dailySalesChart = null;
 
 /**
  * 현재 필터가 적용된 데이터로
@@ -127,6 +127,14 @@ function renderDashboardCharts(rows) {
       settlementIndex
     );
 
+  const dailySales =
+  aggregateDailySales(
+    dataRows,
+    dateIndex,
+    quantityIndex,
+    settlementIndex
+  );
+
   renderMonthlySalesChart(
     monthlySales
   );
@@ -152,7 +160,61 @@ function renderDashboardCharts(rows) {
   );
 }
 
+renderDailySalesChart(
+  dailySales
+);
 
+/**
+ * 일자별 주문수·판매수량·매출 집계
+ */
+function aggregateDailySales(
+  rows,
+  dateIndex,
+  quantityIndex,
+  settlementIndex
+) {
+  const result = {};
+
+  rows.forEach(row => {
+    const dateKey =
+      extractDateKey(
+        row[dateIndex]
+      );
+
+    if (!dateKey) {
+      return;
+    }
+
+    if (!result[dateKey]) {
+      result[dateKey] = {
+        date: dateKey,
+        orders: 0,
+        quantity: 0,
+        sales: 0
+      };
+    }
+
+    result[dateKey].orders += 1;
+
+    result[dateKey].quantity +=
+      chartToNumber(
+        row[quantityIndex]
+      );
+
+    result[dateKey].sales +=
+      chartToNumber(
+        row[settlementIndex]
+      );
+  });
+
+  return Object.values(result)
+    .sort(
+      (itemA, itemB) =>
+        itemA.date.localeCompare(
+          itemB.date
+        )
+    );
+}
 /**
  * 월별 매출 합산
  */
@@ -941,5 +1003,185 @@ function formatChartAxis(value) {
 
   return formatChartNumber(
     number
+  );
+}
+
+/**
+ * 일별 매출 추이 차트
+ */
+function renderDailySalesChart(
+  dailySales
+) {
+  const canvas =
+    document.getElementById(
+      'dailySalesChart'
+    );
+
+  if (!canvas) {
+    return;
+  }
+
+  if (dailySalesChart) {
+    dailySalesChart.destroy();
+  }
+
+  dailySalesChart =
+    new Chart(canvas, {
+      type: 'line',
+
+      data: {
+        labels:
+          dailySales.map(
+            item => item.date
+          ),
+
+        datasets: [
+          {
+            label: '일별 매출',
+            data:
+              dailySales.map(
+                item => item.sales
+              ),
+            borderWidth: 2,
+            tension: 0.25,
+            pointRadius: 2,
+            pointHoverRadius: 5,
+            fill: false,
+            yAxisID: 'salesAxis'
+          },
+          {
+            label: '판매수량',
+            data:
+              dailySales.map(
+                item => item.quantity
+              ),
+            borderWidth: 2,
+            tension: 0.25,
+            pointRadius: 2,
+            pointHoverRadius: 5,
+            fill: false,
+            yAxisID: 'quantityAxis'
+          }
+        ]
+      },
+
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+
+        plugins: {
+          legend: {
+            position: 'top'
+          },
+
+          tooltip: {
+            callbacks: {
+              afterBody(context) {
+                const index =
+                  context[0].dataIndex;
+
+                const item =
+                  dailySales[index];
+
+                return [
+                  '주문수: ' +
+                  formatChartNumber(
+                    item.orders
+                  ) +
+                  '건',
+
+                  '판매수량: ' +
+                  formatChartNumber(
+                    item.quantity
+                  ) +
+                  '개',
+
+                  '매출: ' +
+                  formatChartCurrency(
+                    item.sales
+                  )
+                ];
+              }
+            }
+          }
+        },
+
+        scales: {
+          salesAxis: {
+            type: 'linear',
+            position: 'left',
+            beginAtZero: true,
+
+            ticks: {
+              callback(value) {
+                return formatChartAxis(
+                  value
+                );
+              }
+            }
+          },
+
+          quantityAxis: {
+            type: 'linear',
+            position: 'right',
+            beginAtZero: true,
+
+            grid: {
+              drawOnChartArea: false
+            },
+
+            ticks: {
+              callback(value) {
+                return (
+                  formatChartNumber(
+                    value
+                  ) + '개'
+                );
+              }
+            }
+          }
+        }
+      }
+    });
+}
+
+
+/**
+ * 날짜에서 yyyy-mm-dd 형식 추출
+ */
+function extractDateKey(value) {
+  const text =
+    cleanChartCell(value);
+
+  if (!text) {
+    return '';
+  }
+
+  const match =
+    text.match(
+      /^(\d{4})[-./](\d{1,2})[-./](\d{1,2})/
+    );
+
+  if (!match) {
+    return '';
+  }
+
+  return (
+    match[1] +
+    '-' +
+    String(match[2]).padStart(
+      2,
+      '0'
+    ) +
+    '-' +
+    String(match[3]).padStart(
+      2,
+      '0'
+    )
   );
 }
