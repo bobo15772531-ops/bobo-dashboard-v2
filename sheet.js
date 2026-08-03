@@ -1,165 +1,178 @@
 /**
- * Google Sheets의 DashboardData 게시용 CSV를 불러옵니다.
+ * 보보 판매 Dashboard V2
+ * Google Apps Script 웹앱 데이터 연결
  */
 
-const CSV_URL =
-  'https://docs.google.com/spreadsheets/d/e/2PACX-1vSrQBoqheS1jGixuZgrRmB4r0GB8pOaspARXi4nKZmnScta9f7vs3p2Z6WlPsYGWqal3pjxjN8c6Q06/pub?gid=2087673843&single=true&output=csv';
+const DASHBOARD_API_URL =
+  'https://script.google.com/macros/s/AKfycbyVu6rTa3CZyWJVAQjAVBvC_ZS1pZ_sDmppmA-gXHEej1m9KnpF1VEeNtBx4N37TFuf/exec';
 
 
 /**
- * Google Sheets 데이터를 불러옵니다.
+ * DashboardData를 불러옵니다.
+ *
+ * 반환 형식:
+ * [
+ *   ['주문일자', '마켓', '카테고리', '모델', '수량', '정산가'],
+ *   ['2026-06-01', '스마트몰', '에어컨', 'AW06...', '1', '157796']
+ * ]
  */
-async function loadSheetData() {
-  const cacheBuster = Date.now();
+function loadSheetData() {
+  return new Promise((resolve, reject) => {
+    const callbackName =
+      '__boboDashboardCallback_' +
+      Date.now();
 
-  const response = await fetch(
-    `${CSV_URL}&timestamp=${cacheBuster}`,
-    {
-      method: 'GET',
-      cache: 'no-store'
-    }
-  );
+    const script =
+      document.createElement('script');
 
-  if (!response.ok) {
-    throw new Error(
-      `Google Sheet 응답 오류: ${response.status}`
-    );
-  }
+    let timeoutId;
 
-  const csvText = await response.text();
+    /**
+     * Apps Script API 응답을 받는 함수
+     */
+    window[callbackName] = function(response) {
+      clearTimeout(timeoutId);
 
-  if (!csvText || !csvText.trim()) {
-    throw new Error(
-      'Google Sheet에서 불러온 데이터가 비어 있습니다.'
-    );
-  }
+      try {
+        if (
+          !response ||
+          response.success !== true
+        ) {
+          throw new Error(
+            response &&
+            response.message
+              ? response.message
+              : '데이터 API 응답이 올바르지 않습니다.'
+          );
+        }
 
-  const rows = parseCsv(csvText);
+        if (
+          !Array.isArray(response.data)
+        ) {
+          throw new Error(
+            'API 데이터 형식이 올바르지 않습니다.'
+          );
+        }
 
-  if (!rows || rows.length < 2) {
-    throw new Error(
-      'DashboardData에 분석할 데이터가 없습니다.'
-    );
-  }
+        const headers = [
+          '주문일자',
+          '마켓',
+          '카테고리',
+          '모델',
+          '수량',
+          '정산가'
+        ];
 
-  console.log(
-    `Google Sheet 데이터 ${rows.length - 1}건 불러오기 완료`
-  );
+        const rows = [
+          headers,
+          ...response.data.map(item => [
+            item['주문일자'] || '',
+            item['마켓'] || '',
+            item['카테고리'] || '',
+            item['모델'] || '',
+            item['수량'] || '0',
+            item['정산가'] || '0'
+          ])
+        ];
 
-  return rows;
+        console.log(
+          'Dashboard API 연결 완료:',
+          response.count,
+          '건'
+        );
+
+        console.log(
+          '최종 갱신 시각:',
+          response.updatedAt
+        );
+
+        resolve(rows);
+
+      } catch (error) {
+        reject(error);
+
+      } finally {
+        removeJsonpScript(
+          script,
+          callbackName
+        );
+      }
+    };
+
+    /**
+     * JSONP 요청 주소
+     */
+    const separator =
+      DASHBOARD_API_URL.includes('?')
+        ? '&'
+        : '?';
+
+    script.src =
+      DASHBOARD_API_URL +
+      separator +
+      'callback=' +
+      encodeURIComponent(callbackName) +
+      '&timestamp=' +
+      Date.now();
+
+    script.async = true;
+
+    /**
+     * 스크립트 요청 자체가 실패한 경우
+     */
+    script.onerror = function() {
+      clearTimeout(timeoutId);
+
+      removeJsonpScript(
+        script,
+        callbackName
+      );
+
+      reject(
+        new Error(
+          'Apps Script 데이터 API에 연결하지 못했습니다.'
+        )
+      );
+    };
+
+    /**
+     * 30초 이상 응답이 없을 경우
+     */
+    timeoutId = setTimeout(() => {
+      removeJsonpScript(
+        script,
+        callbackName
+      );
+
+      reject(
+        new Error(
+          '데이터 응답 시간이 초과되었습니다.'
+        )
+      );
+    }, 30000);
+
+    document.head.appendChild(script);
+  });
 }
 
 
 /**
- * CSV 문자열을 표 형태의 배열로 변환합니다.
- *
- * 쉼표가 포함된 금액과 따옴표가 포함된 셀도 처리합니다.
+ * JSONP 요청에 사용한 요소와 전역 함수를 정리합니다.
  */
-function parseCsv(csvText) {
-  const rows = [];
-
-  let currentRow = [];
-  let currentCell = '';
-  let insideQuotes = false;
-
-  for (
-    let index = 0;
-    index < csvText.length;
-    index++
-  ) {
-    const character = csvText[index];
-    const nextCharacter = csvText[index + 1];
-
-    if (character === '"') {
-      /*
-       * CSV 안에서 큰따옴표 두 개는
-       * 실제 큰따옴표 한 개를 뜻합니다.
-       */
-      if (
-        insideQuotes &&
-        nextCharacter === '"'
-      ) {
-        currentCell += '"';
-        index++;
-      } else {
-        insideQuotes = !insideQuotes;
-      }
-
-      continue;
-    }
-
-    /*
-     * 따옴표 밖에서 쉼표를 만나면
-     * 다음 열로 이동합니다.
-     */
-    if (
-      character === ',' &&
-      !insideQuotes
-    ) {
-      currentRow.push(
-        currentCell.trim()
-      );
-
-      currentCell = '';
-      continue;
-    }
-
-    /*
-     * 따옴표 밖에서 줄바꿈을 만나면
-     * 다음 행으로 이동합니다.
-     */
-    if (
-      (
-        character === '\n' ||
-        character === '\r'
-      ) &&
-      !insideQuotes
-    ) {
-      /*
-       * 윈도우 줄바꿈 \r\n은 한 번만 처리합니다.
-       */
-      if (
-        character === '\r' &&
-        nextCharacter === '\n'
-      ) {
-        index++;
-      }
-
-      currentRow.push(
-        currentCell.trim()
-      );
-
-      if (
-        currentRow.some(
-          cell => cell !== ''
-        )
-      ) {
-        rows.push(currentRow);
-      }
-
-      currentRow = [];
-      currentCell = '';
-
-      continue;
-    }
-
-    currentCell += character;
-  }
-
-  /*
-   * 마지막 셀과 마지막 행 처리
-   */
-  currentRow.push(
-    currentCell.trim()
-  );
-
+function removeJsonpScript(
+  script,
+  callbackName
+) {
   if (
-    currentRow.some(
-      cell => cell !== ''
-    )
+    script &&
+    script.parentNode
   ) {
-    rows.push(currentRow);
+    script.parentNode.removeChild(script);
   }
 
-  return rows;
+  try {
+    delete window[callbackName];
+  } catch (error) {
+    window[callbackName] = undefined;
+  }
 }
