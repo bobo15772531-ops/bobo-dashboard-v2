@@ -9,6 +9,7 @@ let topModelChart = null;
 let marketSalesChart = null;
 let dailySalesChart = null;
 let weekdaySalesChart = null;
+let weeklySalesChart = null;
 
 function renderDashboardCharts(rows) {
   if (!Array.isArray(rows) || rows.length < 1) {
@@ -72,6 +73,10 @@ function renderDashboardCharts(rows) {
     dataRows, indexes.date, indexes.quantity, indexes.settlement
   );
 
+  const weeklySales = aggregateWeeklySales(
+    dataRows, indexes.date, indexes.quantity, indexes.settlement
+  );
+
   renderMonthlySalesChart(monthlySales);
   renderCategorySalesChart(categorySales);
   renderTopModelChart(topModels);
@@ -80,6 +85,37 @@ function renderDashboardCharts(rows) {
   renderMarketSalesTable(marketSales);
   renderDailySalesChart(dailySales);
   renderWeekdaySalesChart(weekdaySales);
+  renderWeeklySalesChart(weeklySales);
+}
+
+
+function aggregateWeeklySales(rows, dateIndex, quantityIndex, settlementIndex) {
+  const result = {};
+
+  rows.forEach(row => {
+    const dateKey = extractDateKey(row[dateIndex]);
+    if (!dateKey) return;
+
+    const weekStart = getWeekStartDate(dateKey);
+    if (!weekStart) return;
+
+    if (!result[weekStart]) {
+      result[weekStart] = {
+        week: weekStart,
+        orders: 0,
+        quantity: 0,
+        sales: 0
+      };
+    }
+
+    result[weekStart].orders += 1;
+    result[weekStart].quantity += chartToNumber(row[quantityIndex]);
+    result[weekStart].sales += chartToNumber(row[settlementIndex]);
+  });
+
+  return Object.values(result).sort(
+    (a, b) => a.week.localeCompare(b.week)
+  );
 }
 
 function aggregateMonthlySales(rows, dateIndex, settlementIndex) {
@@ -491,6 +527,41 @@ function renderWeekdaySalesChart(weekdaySales) {
   });
 }
 
+
+function renderWeeklySalesChart(weeklySales) {
+  const canvas = document.getElementById('weeklySalesChart');
+  if (!canvas) return;
+
+  destroyChart(weeklySalesChart);
+
+  weeklySalesChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: weeklySales.map(item => item.week),
+      datasets: [
+        {
+          label: '주차별 매출',
+          data: weeklySales.map(item => item.sales),
+          borderWidth: 1,
+          borderRadius: 7,
+          yAxisID: 'salesAxis'
+        },
+        {
+          label: '판매수량',
+          data: weeklySales.map(item => item.quantity),
+          type: 'line',
+          borderWidth: 2,
+          tension: 0.25,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          yAxisID: 'quantityAxis'
+        }
+      ]
+    },
+    options: dualAxisOptions(weeklySales)
+  });
+}
+
 function dualAxisOptions(sourceItems) {
   return {
     responsive: true,
@@ -561,6 +632,23 @@ function destroyChart(chartInstance) {
   if (chartInstance && typeof chartInstance.destroy === 'function') {
     chartInstance.destroy();
   }
+}
+
+
+function getWeekStartDate(dateKey) {
+  const date = new Date(dateKey + 'T00:00:00');
+  if (Number.isNaN(date.getTime())) return '';
+
+  const day = date.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+
+  date.setDate(date.getDate() + diffToMonday);
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const dayOfMonth = String(date.getDate()).padStart(2, '0');
+
+  return year + '-' + month + '-' + dayOfMonth;
 }
 
 function extractMonthKey(value) {
