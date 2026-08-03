@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
+
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"
@@ -9,6 +10,7 @@
 
   <title>보보 판매 Dashboard V2</title>
 
+  <!-- 차트 라이브러리 -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
@@ -23,6 +25,7 @@
         "Noto Sans KR",
         Arial,
         sans-serif;
+
       background: #f4f7fb;
       color: #1f2937;
     }
@@ -33,6 +36,16 @@
       padding: 24px 32px;
     }
 
+    .header-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+
     header h1 {
       font-size: 26px;
       margin-bottom: 6px;
@@ -41,6 +54,16 @@
     header p {
       color: #6b7280;
       font-size: 14px;
+    }
+
+    .header-badge {
+      padding: 8px 13px;
+      border-radius: 999px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
     }
 
     main {
@@ -54,6 +77,7 @@
       border-radius: 14px;
       padding: 16px 20px;
       margin-bottom: 20px;
+
       box-shadow:
         0 4px 16px rgba(0, 0, 0, 0.05);
     }
@@ -70,10 +94,89 @@
       color: #b91c1c;
     }
 
+    .filter-panel {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 22px;
+
+      box-shadow:
+        0 4px 18px rgba(0, 0, 0, 0.05);
+    }
+
+    .filter-panel h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+    }
+
+    .filter-grid {
+      display: grid;
+
+      grid-template-columns:
+        repeat(5, minmax(150px, 1fr))
+        auto;
+
+      gap: 14px;
+      align-items: end;
+    }
+
+    .filter-item label {
+      display: block;
+      margin-bottom: 7px;
+
+      color: #4b5563;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .filter-item input,
+    .filter-item select {
+      width: 100%;
+      height: 42px;
+
+      border: 1px solid #d1d5db;
+      border-radius: 9px;
+
+      padding: 0 12px;
+      background: #ffffff;
+      color: #1f2937;
+    }
+
+    .filter-item input:focus,
+    .filter-item select:focus {
+      outline: none;
+      border-color: #2563eb;
+
+      box-shadow:
+        0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .reset-button {
+      height: 42px;
+      border: none;
+      border-radius: 9px;
+
+      padding: 0 20px;
+
+      background: #1f2937;
+      color: #ffffff;
+
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .reset-button:hover {
+      background: #111827;
+    }
+
     .kpi-grid {
       display: grid;
+
       grid-template-columns:
         repeat(4, minmax(180px, 1fr));
+
       gap: 18px;
       margin-bottom: 22px;
     }
@@ -82,6 +185,7 @@
       background: #ffffff;
       padding: 22px;
       border-radius: 16px;
+
       box-shadow:
         0 4px 18px rgba(0, 0, 0, 0.05);
     }
@@ -95,13 +199,16 @@
     .kpi-value {
       font-size: 28px;
       font-weight: 800;
+      word-break: keep-all;
     }
 
     .chart-grid {
       display: grid;
+
       grid-template-columns:
         minmax(0, 1.6fr)
         minmax(320px, 1fr);
+
       gap: 18px;
       margin-bottom: 22px;
     }
@@ -111,6 +218,7 @@
       border-radius: 16px;
       padding: 22px;
       margin-bottom: 22px;
+
       box-shadow:
         0 4px 18px rgba(0, 0, 0, 0.05);
     }
@@ -119,9 +227,21 @@
       margin-bottom: 0;
     }
 
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      margin-bottom: 16px;
+    }
+
     .panel h2 {
       font-size: 18px;
-      margin-bottom: 16px;
+    }
+
+    .panel-note {
+      color: #9ca3af;
+      font-size: 12px;
     }
 
     .chart-box {
@@ -129,28 +249,59 @@
       height: 360px;
     }
 
+    .table-scroll {
+      overflow-x: auto;
+    }
+
     .preview-table {
       width: 100%;
       border-collapse: collapse;
+      white-space: nowrap;
     }
 
     .preview-table th,
     .preview-table td {
       border-bottom: 1px solid #e5e7eb;
-      padding: 10px 12px;
+      padding: 11px 12px;
       text-align: left;
       font-size: 13px;
     }
 
     .preview-table th {
       background: #f8fafc;
+      color: #374151;
+      position: sticky;
+      top: 0;
+    }
+
+    .preview-table tbody tr:hover {
+      background: #f8fafc;
+    }
+
+    .preview-table th:nth-child(5),
+    .preview-table th:nth-child(6),
+    .preview-table td:nth-child(5),
+    .preview-table td:nth-child(6) {
+      text-align: right;
     }
 
     footer {
       text-align: center;
       padding: 25px;
+
       color: #9ca3af;
       font-size: 13px;
+    }
+
+    @media (max-width: 1200px) {
+      .filter-grid {
+        grid-template-columns:
+          repeat(3, 1fr);
+      }
+
+      .reset-button {
+        width: 100%;
+      }
     }
 
     @media (max-width: 1000px) {
@@ -161,6 +312,18 @@
 
     @media (max-width: 900px) {
       .kpi-grid {
+        grid-template-columns:
+          repeat(2, 1fr);
+      }
+
+      .header-inner {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .filter-grid {
         grid-template-columns:
           repeat(2, 1fr);
       }
@@ -175,12 +338,17 @@
         padding: 20px;
       }
 
+      .filter-grid,
       .kpi-grid {
         grid-template-columns: 1fr;
       }
 
       .chart-box {
         height: 300px;
+      }
+
+      .kpi-value {
+        font-size: 24px;
       }
     }
   </style>
@@ -189,12 +357,23 @@
 <body>
 
   <header>
-    <h1>📊 보보 판매 Dashboard V2</h1>
-    <p>Google Sheets DashboardData 기반</p>
+    <div class="header-inner">
+
+      <div>
+        <h1>📊 보보 판매 Dashboard V2</h1>
+        <p>Google Sheets DashboardData 기반 판매 분석</p>
+      </div>
+
+      <div class="header-badge">
+        자동 데이터 연동
+      </div>
+
+    </div>
   </header>
 
   <main>
 
+    <!-- 데이터 연결 상태 -->
     <section
       id="statusBox"
       class="status-box loading"
@@ -202,10 +381,91 @@
       데이터를 불러오는 중입니다.
     </section>
 
+    <!-- 필터 -->
+    <section class="filter-panel">
+
+      <h2>판매 데이터 필터</h2>
+
+      <div class="filter-grid">
+
+        <div class="filter-item">
+          <label for="startDate">
+            시작일
+          </label>
+
+          <input
+            type="date"
+            id="startDate"
+          >
+        </div>
+
+        <div class="filter-item">
+          <label for="endDate">
+            종료일
+          </label>
+
+          <input
+            type="date"
+            id="endDate"
+          >
+        </div>
+
+        <div class="filter-item">
+          <label for="marketFilter">
+            마켓
+          </label>
+
+          <select id="marketFilter">
+            <option value="">
+              전체 마켓
+            </option>
+          </select>
+        </div>
+
+        <div class="filter-item">
+          <label for="categoryFilter">
+            카테고리
+          </label>
+
+          <select id="categoryFilter">
+            <option value="">
+              전체 카테고리
+            </option>
+          </select>
+        </div>
+
+        <div class="filter-item">
+          <label for="modelSearch">
+            모델 검색
+          </label>
+
+          <input
+            type="text"
+            id="modelSearch"
+            placeholder="예: AW06, KQ85"
+            autocomplete="off"
+          >
+        </div>
+
+        <button
+          type="button"
+          id="resetFilters"
+          class="reset-button"
+        >
+          필터 초기화
+        </button>
+
+      </div>
+    </section>
+
+    <!-- KPI -->
     <section class="kpi-grid">
 
       <article class="kpi-card">
-        <div class="kpi-title">총매출</div>
+        <div class="kpi-title">
+          총매출
+        </div>
+
         <div
           id="totalSales"
           class="kpi-value"
@@ -215,7 +475,10 @@
       </article>
 
       <article class="kpi-card">
-        <div class="kpi-title">총주문수</div>
+        <div class="kpi-title">
+          총주문수
+        </div>
+
         <div
           id="totalOrders"
           class="kpi-value"
@@ -225,7 +488,10 @@
       </article>
 
       <article class="kpi-card">
-        <div class="kpi-title">판매수량</div>
+        <div class="kpi-title">
+          판매수량
+        </div>
+
         <div
           id="totalQuantity"
           class="kpi-value"
@@ -235,7 +501,10 @@
       </article>
 
       <article class="kpi-card">
-        <div class="kpi-title">평균객단가</div>
+        <div class="kpi-title">
+          평균객단가
+        </div>
+
         <div
           id="averageOrderValue"
           class="kpi-value"
@@ -246,31 +515,58 @@
 
     </section>
 
+    <!-- 차트 -->
     <section class="chart-grid">
 
       <article class="panel">
-        <h2>월별 매출</h2>
+
+        <div class="panel-header">
+          <h2>월별 매출</h2>
+
+          <span class="panel-note">
+            정산가 기준
+          </span>
+        </div>
 
         <div class="chart-box">
           <canvas id="monthlySalesChart"></canvas>
         </div>
+
       </article>
 
       <article class="panel">
-        <h2>카테고리별 매출</h2>
+
+        <div class="panel-header">
+          <h2>카테고리별 매출</h2>
+
+          <span class="panel-note">
+            선택 조건 자동 반영
+          </span>
+        </div>
 
         <div class="chart-box">
           <canvas id="categorySalesChart"></canvas>
         </div>
+
       </article>
 
     </section>
 
+    <!-- 데이터 미리보기 -->
     <section class="panel">
-      <h2>데이터 미리보기</h2>
 
-      <div style="overflow-x:auto;">
+      <div class="panel-header">
+        <h2>데이터 미리보기</h2>
+
+        <span class="panel-note">
+          현재 조건 상위 20건
+        </span>
+      </div>
+
+      <div class="table-scroll">
+
         <table class="preview-table">
+
           <thead>
             <tr>
               <th>주문일자</th>
@@ -284,7 +580,9 @@
 
           <tbody id="previewBody">
           </tbody>
+
         </table>
+
       </div>
     </section>
 
@@ -294,225 +592,19 @@
     보보 판매 Dashboard V2
   </footer>
 
+  <!-- 설정 -->
   <script src="config.js"></script>
+
+  <!-- Google Apps Script 데이터 연결 -->
   <script src="sheet.js"></script>
+
+  <!-- 차트 기능 -->
   <script src="charts.js"></script>
 
+  <!-- 필터 및 KPI 기능 -->
+  <script src="app.js"></script>
+
   <script>
-    function parseNumber(value) {
-      const text = String(value || "")
-        .replace(/"/g, "")
-        .replace(/,/g, "")
-        .replace(/원/g, "")
-        .trim();
-
-      const number = Number(text);
-
-      return Number.isFinite(number)
-        ? number
-        : 0;
-    }
-
-    function formatNumber(value) {
-      return new Intl.NumberFormat(
-        "ko-KR"
-      ).format(value);
-    }
-
-    function cleanCell(value) {
-      return String(value || "")
-        .replace(/^"|"$/g, "")
-        .trim();
-    }
-
-    function updateDashboard(rows) {
-      if (!rows || rows.length < 2) {
-        throw new Error(
-          "불러온 데이터가 없습니다."
-        );
-      }
-
-      const headers = rows[0].map(
-        cleanCell
-      );
-
-      const dateIndex =
-        headers.indexOf("주문일자");
-
-      const marketIndex =
-        headers.indexOf("마켓");
-
-      const categoryIndex =
-        headers.indexOf("카테고리");
-
-      const modelIndex =
-        headers.indexOf("모델");
-
-      const quantityIndex =
-        headers.indexOf("수량");
-
-      const settlementIndex =
-        headers.indexOf("정산가");
-
-      if (
-        quantityIndex === -1 ||
-        settlementIndex === -1
-      ) {
-        throw new Error(
-          "수량 또는 정산가 열을 찾지 못했습니다."
-        );
-      }
-
-      const dataRows = rows
-        .slice(1)
-        .filter(row =>
-          row.some(cell =>
-            cleanCell(cell) !== ""
-          )
-        );
-
-      let totalSales = 0;
-      let totalQuantity = 0;
-
-      dataRows.forEach(row => {
-        totalQuantity +=
-          parseNumber(
-            row[quantityIndex]
-          );
-
-        totalSales +=
-          parseNumber(
-            row[settlementIndex]
-          );
-      });
-
-      const totalOrders =
-        dataRows.length;
-
-      const averageOrderValue =
-        totalOrders > 0
-          ? Math.round(
-              totalSales /
-              totalOrders
-            )
-          : 0;
-
-      document
-        .getElementById("totalSales")
-        .textContent =
-        formatNumber(totalSales) +
-        "원";
-
-      document
-        .getElementById("totalOrders")
-        .textContent =
-        formatNumber(totalOrders) +
-        "건";
-
-      document
-        .getElementById("totalQuantity")
-        .textContent =
-        formatNumber(totalQuantity) +
-        "개";
-
-      document
-        .getElementById(
-          "averageOrderValue"
-        )
-        .textContent =
-        formatNumber(
-          averageOrderValue
-        ) + "원";
-
-      renderDashboardCharts(rows);
-
-      const previewBody =
-        document.getElementById(
-          "previewBody"
-        );
-
-      previewBody.innerHTML = "";
-
-      dataRows
-        .slice(0, 20)
-        .forEach(row => {
-          const tr =
-            document.createElement("tr");
-
-          const cells = [
-            row[dateIndex],
-            row[marketIndex],
-            row[categoryIndex],
-            row[modelIndex],
-            row[quantityIndex],
-            row[settlementIndex]
-          ];
-
-          cells.forEach(
-            (cell, index) => {
-              const td =
-                document.createElement(
-                  "td"
-                );
-
-              if (
-                index === 4 ||
-                index === 5
-              ) {
-                td.textContent =
-                  formatNumber(
-                    parseNumber(cell)
-                  );
-              } else {
-                td.textContent =
-                  cleanCell(cell);
-              }
-
-              tr.appendChild(td);
-            }
-          );
-
-          previewBody.appendChild(tr);
-        });
-
-      const statusBox =
-        document.getElementById(
-          "statusBox"
-        );
-
-      statusBox.className =
-        "status-box success";
-
-      statusBox.textContent =
-        "데이터 연결 완료 · " +
-        formatNumber(totalOrders) +
-        "건을 불러왔습니다.";
-    }
-
-    async function startDashboard() {
-      const statusBox =
-        document.getElementById(
-          "statusBox"
-        );
-
-      try {
-        const rows =
-          await loadSheetData();
-
-        updateDashboard(rows);
-
-      } catch (error) {
-        console.error(error);
-
-        statusBox.className =
-          "status-box error";
-
-        statusBox.textContent =
-          "데이터 연결 실패: " +
-          error.message;
-      }
-    }
-
     startDashboard();
   </script>
 
