@@ -6,17 +6,17 @@
 let monthlySalesChart = null;
 let categorySalesChart = null;
 let topModelChart = null;
+let marketSalesChart = null;
 
 
 /**
- * 전달받은 전체 데이터를 기준으로
- * 월별 매출, 카테고리별 매출,
- * TOP 10 모델 차트를 생성합니다.
+ * 현재 필터가 적용된 데이터로
+ * 모든 차트와 순위표를 다시 생성합니다.
  */
 function renderDashboardCharts(rows) {
   if (
     !Array.isArray(rows) ||
-    rows.length < 2
+    rows.length < 1
   ) {
     throw new Error(
       '차트를 생성할 데이터가 없습니다.'
@@ -30,6 +30,9 @@ function renderDashboardCharts(rows) {
   const dateIndex =
     headers.indexOf('주문일자');
 
+  const marketIndex =
+    headers.indexOf('마켓');
+
   const categoryIndex =
     headers.indexOf('카테고리');
 
@@ -42,33 +45,46 @@ function renderDashboardCharts(rows) {
   const settlementIndex =
     headers.indexOf('정산가');
 
-  if (dateIndex === -1) {
-    throw new Error(
-      '주문일자 열을 찾을 수 없습니다.'
-    );
-  }
+  const requiredColumns = [
+    {
+      name: '주문일자',
+      index: dateIndex
+    },
+    {
+      name: '마켓',
+      index: marketIndex
+    },
+    {
+      name: '카테고리',
+      index: categoryIndex
+    },
+    {
+      name: '모델',
+      index: modelIndex
+    },
+    {
+      name: '수량',
+      index: quantityIndex
+    },
+    {
+      name: '정산가',
+      index: settlementIndex
+    }
+  ];
 
-  if (categoryIndex === -1) {
-    throw new Error(
-      '카테고리 열을 찾을 수 없습니다.'
-    );
-  }
+  const missingColumns =
+    requiredColumns
+      .filter(column =>
+        column.index === -1
+      )
+      .map(column =>
+        column.name
+      );
 
-  if (modelIndex === -1) {
+  if (missingColumns.length > 0) {
     throw new Error(
-      '모델 열을 찾을 수 없습니다.'
-    );
-  }
-
-  if (quantityIndex === -1) {
-    throw new Error(
-      '수량 열을 찾을 수 없습니다.'
-    );
-  }
-
-  if (settlementIndex === -1) {
-    throw new Error(
-      '정산가 열을 찾을 수 없습니다.'
+      '다음 열을 찾지 못했습니다: ' +
+      missingColumns.join(', ')
     );
   }
 
@@ -103,6 +119,14 @@ function renderDashboardCharts(rows) {
       settlementIndex
     );
 
+  const marketSales =
+    aggregateMarketSales(
+      dataRows,
+      marketIndex,
+      quantityIndex,
+      settlementIndex
+    );
+
   renderMonthlySalesChart(
     monthlySales
   );
@@ -118,11 +142,19 @@ function renderDashboardCharts(rows) {
   renderTopModelTable(
     topModels
   );
+
+  renderMarketSalesChart(
+    marketSales
+  );
+
+  renderMarketSalesTable(
+    marketSales
+  );
 }
 
 
 /**
- * 월별 정산가 합산
+ * 월별 매출 합산
  */
 function aggregateMonthlySales(
   rows,
@@ -132,26 +164,20 @@ function aggregateMonthlySales(
   const result = {};
 
   rows.forEach(row => {
-    const dateText =
-      cleanChartCell(
+    const monthKey =
+      extractMonthKey(
         row[dateIndex]
       );
-
-    const monthKey =
-      extractMonthKey(dateText);
 
     if (!monthKey) {
       return;
     }
 
-    const settlementPrice =
+    result[monthKey] =
+      (result[monthKey] || 0) +
       chartToNumber(
         row[settlementIndex]
       );
-
-    result[monthKey] =
-      (result[monthKey] || 0) +
-      settlementPrice;
   });
 
   return Object.fromEntries(
@@ -164,7 +190,7 @@ function aggregateMonthlySales(
 
 
 /**
- * 카테고리별 정산가 합산
+ * 카테고리별 매출 합산
  */
 function aggregateCategorySales(
   rows,
@@ -179,14 +205,11 @@ function aggregateCategorySales(
         row[categoryIndex]
       ) || '미분류';
 
-    const settlementPrice =
+    result[category] =
+      (result[category] || 0) +
       chartToNumber(
         row[settlementIndex]
       );
-
-    result[category] =
-      (result[category] || 0) +
-      settlementPrice;
   });
 
   return Object.fromEntries(
@@ -199,8 +222,7 @@ function aggregateCategorySales(
 
 
 /**
- * 모델별 판매수량과 매출을 합산한 뒤
- * 판매수량 기준 TOP 10을 반환합니다.
+ * 모델별 수량 및 매출 집계
  */
 function aggregateTopModels(
   rows,
@@ -216,16 +238,6 @@ function aggregateTopModels(
         row[modelIndex]
       ) || '미분류';
 
-    const quantity =
-      chartToNumber(
-        row[quantityIndex]
-      );
-
-    const sales =
-      chartToNumber(
-        row[settlementIndex]
-      );
-
     if (!result[model]) {
       result[model] = {
         model: model,
@@ -235,26 +247,31 @@ function aggregateTopModels(
     }
 
     result[model].quantity +=
-      quantity;
+      chartToNumber(
+        row[quantityIndex]
+      );
 
     result[model].sales +=
-      sales;
+      chartToNumber(
+        row[settlementIndex]
+      );
   });
 
   return Object.values(result)
-    .sort((a, b) => {
+    .sort((itemA, itemB) => {
       if (
-        b.quantity !== a.quantity
+        itemB.quantity !==
+        itemA.quantity
       ) {
         return (
-          b.quantity -
-          a.quantity
+          itemB.quantity -
+          itemA.quantity
         );
       }
 
       return (
-        b.sales -
-        a.sales
+        itemB.sales -
+        itemA.sales
       );
     })
     .slice(0, 10);
@@ -262,7 +279,55 @@ function aggregateTopModels(
 
 
 /**
- * 월별 매출 막대 차트
+ * 마켓별 주문수·수량·매출 집계
+ */
+function aggregateMarketSales(
+  rows,
+  marketIndex,
+  quantityIndex,
+  settlementIndex
+) {
+  const result = {};
+
+  rows.forEach(row => {
+    const market =
+      cleanChartCell(
+        row[marketIndex]
+      ) || '미분류';
+
+    if (!result[market]) {
+      result[market] = {
+        market: market,
+        orders: 0,
+        quantity: 0,
+        sales: 0
+      };
+    }
+
+    result[market].orders += 1;
+
+    result[market].quantity +=
+      chartToNumber(
+        row[quantityIndex]
+      );
+
+    result[market].sales +=
+      chartToNumber(
+        row[settlementIndex]
+      );
+  });
+
+  return Object.values(result)
+    .sort(
+      (itemA, itemB) =>
+        itemB.sales -
+        itemA.sales
+    );
+}
+
+
+/**
+ * 월별 매출 차트
  */
 function renderMonthlySalesChart(
   monthlySales
@@ -281,71 +346,68 @@ function renderMonthlySalesChart(
   }
 
   monthlySalesChart =
-    new Chart(
-      canvas,
-      {
-        type: 'bar',
+    new Chart(canvas, {
+      type: 'bar',
 
-        data: {
-          labels:
-            Object.keys(
-              monthlySales
-            ),
+      data: {
+        labels:
+          Object.keys(
+            monthlySales
+          ),
 
-          datasets: [
-            {
-              label: '월별 매출',
-              data:
-                Object.values(
-                  monthlySales
-                ),
-              borderWidth: 1,
-              borderRadius: 7
-            }
-          ]
-        },
+        datasets: [
+          {
+            label: '월별 매출',
+            data:
+              Object.values(
+                monthlySales
+              ),
+            borderWidth: 1,
+            borderRadius: 7
+          }
+        ]
+      },
 
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
 
-          plugins: {
-            legend: {
-              display: false
-            },
-
-            tooltip: {
-              callbacks: {
-                label(context) {
-                  return formatChartCurrency(
-                    context.raw
-                  );
-                }
-              }
-            }
+        plugins: {
+          legend: {
+            display: false
           },
 
-          scales: {
-            y: {
-              beginAtZero: true,
+          tooltip: {
+            callbacks: {
+              label(context) {
+                return formatChartCurrency(
+                  context.raw
+                );
+              }
+            }
+          }
+        },
 
-              ticks: {
-                callback(value) {
-                  return formatChartAxis(
-                    value
-                  );
-                }
+        scales: {
+          y: {
+            beginAtZero: true,
+
+            ticks: {
+              callback(value) {
+                return formatChartAxis(
+                  value
+                );
               }
             }
           }
         }
       }
-    );
+    });
 }
 
 
 /**
- * 카테고리별 매출 도넛 차트
+ * 카테고리별 매출 차트
  */
 function renderCategorySalesChart(
   categorySales
@@ -364,63 +426,60 @@ function renderCategorySalesChart(
   }
 
   categorySalesChart =
-    new Chart(
-      canvas,
-      {
-        type: 'doughnut',
+    new Chart(canvas, {
+      type: 'doughnut',
 
-        data: {
-          labels:
-            Object.keys(
-              categorySales
-            ),
+      data: {
+        labels:
+          Object.keys(
+            categorySales
+          ),
 
-          datasets: [
-            {
-              label:
-                '카테고리별 매출',
+        datasets: [
+          {
+            label:
+              '카테고리별 매출',
 
-              data:
-                Object.values(
-                  categorySales
-                ),
+            data:
+              Object.values(
+                categorySales
+              ),
 
-              borderWidth: 2
-            }
-          ]
-        },
+            borderWidth: 2
+          }
+        ]
+      },
 
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
 
-          plugins: {
-            legend: {
-              position: 'right'
-            },
+        plugins: {
+          legend: {
+            position: 'right'
+          },
 
-            tooltip: {
-              callbacks: {
-                label(context) {
-                  return (
-                    context.label +
-                    ': ' +
-                    formatChartCurrency(
-                      context.raw
-                    )
-                  );
-                }
+          tooltip: {
+            callbacks: {
+              label(context) {
+                return (
+                  context.label +
+                  ': ' +
+                  formatChartCurrency(
+                    context.raw
+                  )
+                );
               }
             }
           }
         }
       }
-    );
+    });
 }
 
 
 /**
- * TOP 10 모델 가로 막대 차트
+ * TOP 10 모델 차트
  */
 function renderTopModelChart(
   topModels
@@ -439,87 +498,84 @@ function renderTopModelChart(
   }
 
   topModelChart =
-    new Chart(
-      canvas,
-      {
-        type: 'bar',
+    new Chart(canvas, {
+      type: 'bar',
 
-        data: {
-          labels:
-            topModels.map(
-              item => item.model
-            ),
+      data: {
+        labels:
+          topModels.map(
+            item => item.model
+          ),
 
-          datasets: [
-            {
-              label: '판매수량',
-              data:
-                topModels.map(
-                  item =>
-                    item.quantity
-                ),
-              borderWidth: 1,
-              borderRadius: 6
-            }
-          ]
-        },
+        datasets: [
+          {
+            label: '판매수량',
+            data:
+              topModels.map(
+                item =>
+                  item.quantity
+              ),
+            borderWidth: 1,
+            borderRadius: 6
+          }
+        ]
+      },
 
-        options: {
-          indexAxis: 'y',
-          responsive: true,
-          maintainAspectRatio: false,
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
 
-          plugins: {
-            legend: {
-              display: false
-            },
-
-            tooltip: {
-              callbacks: {
-                label(context) {
-                  const item =
-                    topModels[
-                      context.dataIndex
-                    ];
-
-                  return [
-                    '판매수량: ' +
-                    formatChartNumber(
-                      item.quantity
-                    ) +
-                    '개',
-
-                    '매출: ' +
-                    formatChartCurrency(
-                      item.sales
-                    )
-                  ];
-                }
-              }
-            }
+        plugins: {
+          legend: {
+            display: false
           },
 
-          scales: {
-            x: {
-              beginAtZero: true,
+          tooltip: {
+            callbacks: {
+              label(context) {
+                const item =
+                  topModels[
+                    context.dataIndex
+                  ];
 
-              ticks: {
-                callback(value) {
-                  return formatChartNumber(
-                    value
-                  );
-                }
+                return [
+                  '판매수량: ' +
+                  formatChartNumber(
+                    item.quantity
+                  ) +
+                  '개',
+
+                  '매출: ' +
+                  formatChartCurrency(
+                    item.sales
+                  )
+                ];
+              }
+            }
+          }
+        },
+
+        scales: {
+          x: {
+            beginAtZero: true,
+
+            ticks: {
+              callback(value) {
+                return formatChartNumber(
+                  value
+                );
               }
             }
           }
         }
       }
-    );
+    });
 }
 
 
 /**
- * TOP 10 모델 표
+ * TOP 10 모델 순위표
  */
 function renderTopModelTable(
   topModels
@@ -571,12 +627,184 @@ function renderTopModelTable(
           );
 
         cell.textContent = value;
-
         row.appendChild(cell);
       });
 
       tableBody.appendChild(row);
     });
+}
+
+
+/**
+ * 마켓별 매출 가로막대 차트
+ */
+function renderMarketSalesChart(
+  marketSales
+) {
+  const canvas =
+    document.getElementById(
+      'marketSalesChart'
+    );
+
+  if (!canvas) {
+    return;
+  }
+
+  if (marketSalesChart) {
+    marketSalesChart.destroy();
+  }
+
+  const displayItems =
+    marketSales.slice(0, 15);
+
+  marketSalesChart =
+    new Chart(canvas, {
+      type: 'bar',
+
+      data: {
+        labels:
+          displayItems.map(
+            item =>
+              item.market
+          ),
+
+        datasets: [
+          {
+            label: '매출',
+            data:
+              displayItems.map(
+                item =>
+                  item.sales
+              ),
+            borderWidth: 1,
+            borderRadius: 6
+          }
+        ]
+      },
+
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+
+        plugins: {
+          legend: {
+            display: false
+          },
+
+          tooltip: {
+            callbacks: {
+              label(context) {
+                const item =
+                  displayItems[
+                    context.dataIndex
+                  ];
+
+                return [
+                  '매출: ' +
+                  formatChartCurrency(
+                    item.sales
+                  ),
+
+                  '주문수: ' +
+                  formatChartNumber(
+                    item.orders
+                  ) +
+                  '건',
+
+                  '판매수량: ' +
+                  formatChartNumber(
+                    item.quantity
+                  ) +
+                  '개'
+                ];
+              }
+            }
+          }
+        },
+
+        scales: {
+          x: {
+            beginAtZero: true,
+
+            ticks: {
+              callback(value) {
+                return formatChartAxis(
+                  value
+                );
+              }
+            }
+          }
+        }
+      }
+    });
+}
+
+
+/**
+ * 마켓별 분석 표
+ */
+function renderMarketSalesTable(
+  marketSales
+) {
+  const tableBody =
+    document.getElementById(
+      'marketSalesBody'
+    );
+
+  if (!tableBody) {
+    return;
+  }
+
+  tableBody.innerHTML = '';
+
+  marketSales
+    .slice(0, 15)
+    .forEach(
+      (item, index) => {
+        const averageOrderValue =
+          item.orders > 0
+            ? Math.round(
+                item.sales /
+                item.orders
+              )
+            : 0;
+
+        const row =
+          document.createElement(
+            'tr'
+          );
+
+        const values = [
+          index + 1,
+          item.market,
+          formatChartNumber(
+            item.orders
+          ),
+          formatChartNumber(
+            item.quantity
+          ),
+          formatChartCurrency(
+            item.sales
+          ),
+          formatChartCurrency(
+            averageOrderValue
+          )
+        ];
+
+        values.forEach(value => {
+          const cell =
+            document.createElement(
+              'td'
+            );
+
+          cell.textContent = value;
+          row.appendChild(cell);
+        });
+
+        tableBody.appendChild(row);
+      }
+    );
 }
 
 
@@ -629,8 +857,7 @@ function chartToNumber(value) {
       .replace(/\s/g, '')
       .trim();
 
-  const number =
-    Number(text);
+  const number = Number(text);
 
   return Number.isFinite(number)
     ? number
@@ -639,7 +866,7 @@ function chartToNumber(value) {
 
 
 /**
- * 셀 문자 정리
+ * 문자 정리
  */
 function cleanChartCell(value) {
   return String(value || '')
@@ -649,7 +876,7 @@ function cleanChartCell(value) {
 
 
 /**
- * 일반 숫자 표시
+ * 숫자 표시
  */
 function formatChartNumber(value) {
   return new Intl.NumberFormat(
@@ -682,11 +909,18 @@ function formatChartAxis(value) {
     Math.abs(number) >=
     100000000
   ) {
+    const billions =
+      number /
+      100000000;
+
     return (
-      Math.round(
-        number /
-        100000000
-      ) + '억'
+      billions.toLocaleString(
+        'ko-KR',
+        {
+          maximumFractionDigits: 1
+        }
+      ) +
+      '억'
     );
   }
 
@@ -698,7 +932,10 @@ function formatChartAxis(value) {
       Math.round(
         number /
         10000
-      ) + '만'
+      ).toLocaleString(
+        'ko-KR'
+      ) +
+      '만'
     );
   }
 
