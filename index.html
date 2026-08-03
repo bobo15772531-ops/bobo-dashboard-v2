@@ -9,6 +9,8 @@
 
   <title>보보 판매 Dashboard V2</title>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
     * {
       box-sizing: border-box;
@@ -95,6 +97,15 @@
       font-weight: 800;
     }
 
+    .chart-grid {
+      display: grid;
+      grid-template-columns:
+        minmax(0, 1.6fr)
+        minmax(320px, 1fr);
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
     .panel {
       background: #ffffff;
       border-radius: 16px;
@@ -104,9 +115,18 @@
         0 4px 18px rgba(0, 0, 0, 0.05);
     }
 
+    .chart-grid .panel {
+      margin-bottom: 0;
+    }
+
     .panel h2 {
       font-size: 18px;
       margin-bottom: 16px;
+    }
+
+    .chart-box {
+      position: relative;
+      height: 360px;
     }
 
     .preview-table {
@@ -133,6 +153,12 @@
       font-size: 13px;
     }
 
+    @media (max-width: 1000px) {
+      .chart-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
     @media (max-width: 900px) {
       .kpi-grid {
         grid-template-columns:
@@ -145,8 +171,16 @@
         padding: 16px;
       }
 
+      header {
+        padding: 20px;
+      }
+
       .kpi-grid {
         grid-template-columns: 1fr;
+      }
+
+      .chart-box {
+        height: 300px;
       }
     }
   </style>
@@ -212,6 +246,26 @@
 
     </section>
 
+    <section class="chart-grid">
+
+      <article class="panel">
+        <h2>월별 매출</h2>
+
+        <div class="chart-box">
+          <canvas id="monthlySalesChart"></canvas>
+        </div>
+      </article>
+
+      <article class="panel">
+        <h2>카테고리별 매출</h2>
+
+        <div class="chart-box">
+          <canvas id="categorySalesChart"></canvas>
+        </div>
+      </article>
+
+    </section>
+
     <section class="panel">
       <h2>데이터 미리보기</h2>
 
@@ -242,6 +296,7 @@
 
   <script src="config.js"></script>
   <script src="sheet.js"></script>
+  <script src="charts.js"></script>
 
   <script>
     function parseNumber(value) {
@@ -368,6 +423,8 @@
         formatNumber(
           averageOrderValue
         ) + "원";
+
+      renderDashboardCharts(rows);
 
       const previewBody =
         document.getElementById(
