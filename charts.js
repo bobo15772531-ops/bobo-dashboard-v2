@@ -158,11 +158,11 @@ function renderDashboardCharts(rows) {
   renderMarketSalesTable(
     marketSales
   );
-}
 
-renderDailySalesChart(
+  renderDailySalesChart(
   dailySales
 );
+}
 
 /**
  * 일자별 주문수·판매수량·매출 집계
