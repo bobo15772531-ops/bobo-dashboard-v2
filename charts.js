@@ -8,6 +8,7 @@ let categorySalesChart = null;
 let topModelChart = null;
 let marketSalesChart = null;
 let dailySalesChart = null;
+let weekdaySalesChart = null;
 
 /**
  * 현재 필터가 적용된 데이터로
@@ -135,6 +136,14 @@ function renderDashboardCharts(rows) {
     settlementIndex
   );
 
+  const weekdaySales =
+  aggregateWeekdaySales(
+    dataRows,
+    dateIndex,
+    quantityIndex,
+    settlementIndex
+  );
+
   renderMonthlySalesChart(
     monthlySales
   );
@@ -162,6 +171,160 @@ function renderDashboardCharts(rows) {
   renderDailySalesChart(
   dailySales
 );
+
+  renderDailySalesChart(
+  dailySales
+);
+}
+
+/**
+ * 요일별 주문수·판매수량·매출 집계
+ */
+function aggregateWeekdaySales(
+  rows,
+  dateIndex,
+  quantityIndex,
+  settlementIndex
+) {
+  const weekdayNames = [
+    '일',
+    '월',
+    '화',
+    '수',
+    '목',
+    '금',
+    '토'
+  ];
+
+  const result = weekdayNames.map(
+    (weekday, index) => ({
+      weekday,
+      weekdayIndex: index,
+      orders: 0,
+      quantity: 0,
+      sales: 0
+    })
+  );
+
+  rows.forEach(row => {
+    const dateKey =
+      extractDateKey(
+        row[dateIndex]
+      );
+
+    if (!dateKey) {
+      return;
+    }
+
+    const date =
+      new Date(
+        dateKey + 'T00:00:00'
+      );
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return;
+    }
+
+    const weekdayIndex =
+      date.getDay();
+
+    result[weekdayIndex].orders += 1;
+
+    result[weekdayIndex].quantity +=
+      chartToNumber(
+        row[quantityIndex]
+      );
+
+    result[weekdayIndex].sales +=
+      chartToNumber(
+        row[settlementIndex]
+      );
+  });
+
+/**
+ * 요일별 주문수·판매수량·매출 집계
+ */
+function aggregateWeekdaySales(
+  rows,
+  dateIndex,
+  quantityIndex,
+  settlementIndex
+) {
+  const weekdayNames = [
+    '일',
+    '월',
+    '화',
+    '수',
+    '목',
+    '금',
+    '토'
+  ];
+
+  const result = weekdayNames.map(
+    (weekday, index) => ({
+      weekday,
+      weekdayIndex: index,
+      orders: 0,
+      quantity: 0,
+      sales: 0
+    })
+  );
+
+  rows.forEach(row => {
+    const dateKey =
+      extractDateKey(
+        row[dateIndex]
+      );
+
+    if (!dateKey) {
+      return;
+    }
+
+    const date =
+      new Date(
+        dateKey + 'T00:00:00'
+      );
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return;
+    }
+
+    const weekdayIndex =
+      date.getDay();
+
+    result[weekdayIndex].orders += 1;
+
+    result[weekdayIndex].quantity +=
+      chartToNumber(
+        row[quantityIndex]
+      );
+
+    result[weekdayIndex].sales +=
+      chartToNumber(
+        row[settlementIndex]
+      );
+  });
+
+  /*
+   * 월요일부터 일요일 순서로 변경
+   */
+  return [
+    result[1],
+    result[2],
+    result[3],
+    result[4],
+    result[5],
+    result[6],
+    result[0]
+  ];
 }
 
 /**
@@ -1186,3 +1349,146 @@ function extractDateKey(value) {
   );
 }
 
+  /**
+ * 요일별 판매 분석 차트
+ */
+function renderWeekdaySalesChart(
+  weekdaySales
+) {
+  const canvas =
+    document.getElementById(
+      'weekdaySalesChart'
+    );
+
+  if (!canvas) {
+    return;
+  }
+
+  if (weekdaySalesChart) {
+    weekdaySalesChart.destroy();
+  }
+
+  weekdaySalesChart =
+    new Chart(canvas, {
+      type: 'bar',
+
+      data: {
+        labels:
+          weekdaySales.map(
+            item =>
+              item.weekday + '요일'
+          ),
+
+        datasets: [
+          {
+            label: '매출',
+            data:
+              weekdaySales.map(
+                item =>
+                  item.sales
+              ),
+            borderWidth: 1,
+            borderRadius: 7,
+            yAxisID: 'salesAxis'
+          },
+          {
+            label: '판매수량',
+            data:
+              weekdaySales.map(
+                item =>
+                  item.quantity
+              ),
+            type: 'line',
+            borderWidth: 2,
+            tension: 0.25,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            yAxisID: 'quantityAxis'
+          }
+        ]
+      },
+
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+
+        plugins: {
+          legend: {
+            position: 'top'
+          },
+
+          tooltip: {
+            callbacks: {
+              afterBody(context) {
+                const index =
+                  context[0].dataIndex;
+
+                const item =
+                  weekdaySales[index];
+
+                return [
+                  '주문수: ' +
+                  formatChartNumber(
+                    item.orders
+                  ) +
+                  '건',
+
+                  '판매수량: ' +
+                  formatChartNumber(
+                    item.quantity
+                  ) +
+                  '개',
+
+                  '매출: ' +
+                  formatChartCurrency(
+                    item.sales
+                  )
+                ];
+              }
+            }
+          }
+        },
+
+        scales: {
+          salesAxis: {
+            type: 'linear',
+            position: 'left',
+            beginAtZero: true,
+
+            ticks: {
+              callback(value) {
+                return formatChartAxis(
+                  value
+                );
+              }
+            }
+          },
+
+          quantityAxis: {
+            type: 'linear',
+            position: 'right',
+            beginAtZero: true,
+
+            grid: {
+              drawOnChartArea: false
+            },
+
+            ticks: {
+              callback(value) {
+                return (
+                  formatChartNumber(
+                    value
+                  ) + '개'
+                );
+              }
+            }
+          }
+        }
+      }
+    });
+}
