@@ -172,78 +172,10 @@ function renderDashboardCharts(rows) {
   dailySales
 );
 
-  renderDailySalesChart(
-  dailySales
+renderWeekdaySalesChart(
+  weekdaySales
 );
 }
-
-/**
- * 요일별 주문수·판매수량·매출 집계
- */
-function aggregateWeekdaySales(
-  rows,
-  dateIndex,
-  quantityIndex,
-  settlementIndex
-) {
-  const weekdayNames = [
-    '일',
-    '월',
-    '화',
-    '수',
-    '목',
-    '금',
-    '토'
-  ];
-
-  const result = weekdayNames.map(
-    (weekday, index) => ({
-      weekday,
-      weekdayIndex: index,
-      orders: 0,
-      quantity: 0,
-      sales: 0
-    })
-  );
-
-  rows.forEach(row => {
-    const dateKey =
-      extractDateKey(
-        row[dateIndex]
-      );
-
-    if (!dateKey) {
-      return;
-    }
-
-    const date =
-      new Date(
-        dateKey + 'T00:00:00'
-      );
-
-    if (
-      Number.isNaN(
-        date.getTime()
-      )
-    ) {
-      return;
-    }
-
-    const weekdayIndex =
-      date.getDay();
-
-    result[weekdayIndex].orders += 1;
-
-    result[weekdayIndex].quantity +=
-      chartToNumber(
-        row[quantityIndex]
-      );
-
-    result[weekdayIndex].sales +=
-      chartToNumber(
-        row[settlementIndex]
-      );
-  });
 
 /**
  * 요일별 주문수·판매수량·매출 집계
