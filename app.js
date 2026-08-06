@@ -1,764 +1,1142 @@
 /**
- * 보보 판매 Dashboard V2
- * 필터, KPI, 미리보기, 차트 연결 관리
+ * BOBO 발주 검수 Dashboard V1
+ * 파일 업로드 및 엑셀 데이터 읽기
  */
 
-let dashboardRows = [];
-let filteredDashboardRows = [];
+const uploadedFiles = {
+  purchase: null,
+  online: null,
+  direct: null
+};
+
+const uploadedData = {
+  purchase: null,
+  online: null,
+  direct: null
+};
+
+let checkResults = [];
+let activeResultFilter = 'all';
 
 
 /**
- * 대시보드 전체 시작
+ * 화면 시작
  */
-async function startDashboard() {
-  const statusBox =
-    document.getElementById('statusBox');
+document.addEventListener(
+  'DOMContentLoaded',
+  initializeOrderCheckDashboard
+);
 
-  try {
-    const rows =
-      await loadSheetData();
 
-    dashboardRows = rows;
+/**
+ * 대시보드 초기화
+ */
+function initializeOrderCheckDashboard() {
+  bindFileInput(
+    'purchase',
+    'purchaseFile',
+    'purchaseFileName'
+  );
 
-    initializeDashboardFilters(rows);
+  bindFileInput(
+    'online',
+    'onlineFile',
+    'onlineFileName'
+  );
 
-    applyDashboardFilters();
+  bindFileInput(
+    'direct',
+    'directFile',
+    'directFileName'
+  );
 
-  } catch (error) {
-    console.error(error);
+  const startCheckButton =
+    document.getElementById(
+      'startCheckButton'
+    );
 
-    statusBox.className =
-      'status-box error';
-
-    statusBox.textContent =
-      '데이터 연결 실패: ' +
-      error.message;
+  if (startCheckButton) {
+    startCheckButton.addEventListener(
+      'click',
+      startOrderCheck
+    );
   }
+
+  const resetCheckButton =
+    document.getElementById(
+      'resetCheckButton'
+    );
+
+  if (resetCheckButton) {
+    resetCheckButton.addEventListener(
+      'click',
+      resetOrderCheckDashboard
+    );
+  }
+
+  bindResultEvents();
+  updateStartButtonState();
 }
 
 
 /**
- * 필터 선택 항목을 구성합니다.
+ * 파일 선택 이벤트 연결
  */
-function initializeDashboardFilters(rows) {
+function bindFileInput(
+  fileType,
+  inputId,
+  fileNameId
+) {
+  const input =
+    document.getElementById(
+      inputId
+    );
+
+  if (!input) {
+    return;
+  }
+
+  input.addEventListener(
+    'change',
+    async event => {
+      const file =
+        event.target.files &&
+        event.target.files[0];
+
+      if (!file) {
+        clearUploadedFile(
+          fileType,
+          fileNameId
+        );
+
+        return;
+      }
+
+      try {
+        setStatus(
+          'loading',
+          getFileTypeLabel(fileType) +
+            ' 파일을 읽는 중입니다.'
+        );
+
+        const parsedData =
+          await readExcelFile(
+            file,
+            fileType
+          );
+
+        uploadedFiles[fileType] =
+          file;
+
+        uploadedData[fileType] =
+          parsedData;
+
+        setFileNameDisplay(
+          fileNameId,
+          file.name,
+          parsedData.rows.length
+        );
+
+        setStatus(
+          'success',
+          getFileTypeLabel(fileType) +
+            ' 파일을 정상적으로 읽었습니다. ' +
+            formatNumber(
+              parsedData.rows.length
+            ) +
+            '행'
+        );
+
+      } catch (error) {
+        console.error(error);
+
+        uploadedFiles[fileType] =
+          null;
+
+        uploadedData[fileType] =
+          null;
+
+        input.value = '';
+
+        setFileNameError(
+          fileNameId,
+          error.message
+        );
+
+        setStatus(
+          'error',
+          getFileTypeLabel(fileType) +
+            ' 파일 오류: ' +
+            error.message
+        );
+      }
+
+      updateStartButtonState();
+    }
+  );
+}
+
+
+/**
+ * 엑셀 파일 읽기
+ */
+async function readExcelFile(
+  file,
+  fileType
+) {
   if (
-    !Array.isArray(rows) ||
-    rows.length < 2
+    typeof XLSX === 'undefined'
+  ) {
+    throw new Error(
+      '엑셀 라이브러리를 불러오지 못했습니다.'
+    );
+  }
+
+  const extension =
+    getFileExtension(
+      file.name
+    );
+
+  if (
+    extension !== 'xlsx' &&
+    extension !== 'xls'
+  ) {
+    throw new Error(
+      'xlsx 또는 xls 파일만 사용할 수 있습니다.'
+    );
+  }
+
+  const arrayBuffer =
+    await file.arrayBuffer();
+
+  const workbook =
+    XLSX.read(
+      arrayBuffer,
+      {
+        type: 'array',
+        cellDates: true,
+        raw: false
+      }
+    );
+
+  if (
+    !workbook.SheetNames ||
+    workbook.SheetNames.length === 0
+  ) {
+    throw new Error(
+      '엑셀 시트를 찾을 수 없습니다.'
+    );
+  }
+
+  const firstSheetName =
+    workbook.SheetNames[0];
+
+  const worksheet =
+    workbook.Sheets[
+      firstSheetName
+    ];
+
+  const rawRows =
+    XLSX.utils.sheet_to_json(
+      worksheet,
+      {
+        header: 1,
+        defval: '',
+        raw: false,
+        blankrows: false
+      }
+    );
+
+  if (
+    !Array.isArray(rawRows) ||
+    rawRows.length < 2
+  ) {
+    throw new Error(
+      '데이터가 없거나 1행 헤더를 찾을 수 없습니다.'
+    );
+  }
+
+  const headerRowIndex =
+    findHeaderRowIndex(
+      rawRows,
+      fileType
+    );
+
+  if (
+    headerRowIndex === -1
+  ) {
+    throw new Error(
+      '저장된 고정 헤더를 찾지 못했습니다.'
+    );
+  }
+
+  const headers =
+    rawRows[headerRowIndex]
+      .map(normalizeHeader);
+
+  const columnMap =
+    createColumnMap(
+      headers,
+      fileType
+    );
+
+  validateRequiredHeaders(
+    columnMap,
+    fileType
+  );
+
+  const rows =
+    rawRows
+      .slice(
+        headerRowIndex + 1
+      )
+      .filter(row =>
+        row.some(value =>
+          normalizeText(value) !== ''
+        )
+      )
+      .map(
+        (row, index) =>
+          createStandardRow(
+            row,
+            columnMap,
+            headerRowIndex +
+              index +
+              2
+          )
+      );
+
+  if (rows.length === 0) {
+    throw new Error(
+      '검수할 데이터 행이 없습니다.'
+    );
+  }
+
+  return {
+    fileName: file.name,
+    sheetName: firstSheetName,
+    headerRowNumber:
+      headerRowIndex + 1,
+    headers,
+    columnMap,
+    rows
+  };
+}
+
+
+/**
+ * 헤더 행 자동 탐색
+ *
+ * 기본적으로 1행을 사용하지만,
+ * 혹시 위쪽에 안내 문구가 있는 파일도
+ * 읽을 수 있도록 앞 20행을 검사합니다.
+ */
+function findHeaderRowIndex(
+  rawRows,
+  fileType
+) {
+  const fileConfig =
+    ORDER_CHECK_CONFIG
+      .fileTypes[fileType];
+
+  if (!fileConfig) {
+    return -1;
+  }
+
+  const requiredFields =
+    fileConfig.required || [];
+
+  const searchLimit =
+    Math.min(
+      rawRows.length,
+      20
+    );
+
+  let bestIndex = -1;
+  let bestScore = 0;
+
+  for (
+    let rowIndex = 0;
+    rowIndex < searchLimit;
+    rowIndex += 1
+  ) {
+    const normalizedHeaders =
+      rawRows[rowIndex]
+        .map(normalizeHeader);
+
+    let score = 0;
+
+    Object
+      .entries(
+        fileConfig.headers
+      )
+      .forEach(
+        ([
+          fieldName,
+          aliases
+        ]) => {
+          const found =
+            aliases.some(alias =>
+              normalizedHeaders.includes(
+                normalizeHeader(alias)
+              )
+            );
+
+          if (found) {
+            score +=
+              requiredFields.includes(
+                fieldName
+              )
+                ? 3
+                : 1;
+          }
+        }
+      );
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = rowIndex;
+    }
+  }
+
+  const minimumScore =
+    Math.max(
+      3,
+      requiredFields.length * 2
+    );
+
+  return bestScore >=
+    minimumScore
+      ? bestIndex
+      : -1;
+}
+
+
+/**
+ * 헤더명과 실제 열 위치 연결
+ */
+function createColumnMap(
+  headers,
+  fileType
+) {
+  const fileConfig =
+    ORDER_CHECK_CONFIG
+      .fileTypes[fileType];
+
+  const columnMap = {};
+
+  Object
+    .entries(
+      fileConfig.headers
+    )
+    .forEach(
+      ([
+        fieldName,
+        aliases
+      ]) => {
+        let foundIndex = -1;
+
+        for (
+          const alias of aliases
+        ) {
+          const normalizedAlias =
+            normalizeHeader(alias);
+
+          foundIndex =
+            headers.indexOf(
+              normalizedAlias
+            );
+
+          if (foundIndex !== -1) {
+            break;
+          }
+        }
+
+        columnMap[fieldName] =
+          foundIndex;
+      }
+    );
+
+  return columnMap;
+}
+
+
+/**
+ * 필수 헤더 검사
+ */
+function validateRequiredHeaders(
+  columnMap,
+  fileType
+) {
+  const fileConfig =
+    ORDER_CHECK_CONFIG
+      .fileTypes[fileType];
+
+  const missingFields =
+    fileConfig.required
+      .filter(fieldName =>
+        columnMap[fieldName] === -1
+      );
+
+  if (
+    missingFields.length === 0
   ) {
     return;
   }
 
-  const headers =
-    rows[0].map(cleanAppCell);
-
-  const marketIndex =
-    headers.indexOf('마켓');
-
-  const categoryIndex =
-    headers.indexOf('카테고리');
-
-  const dateIndex =
-    headers.indexOf('주문일자');
-
-  const markets =
-    getUniqueSortedValues(
-      rows.slice(1),
-      marketIndex
+  const missingLabels =
+    missingFields.map(
+      fieldName =>
+        getPrimaryHeaderName(
+          fileType,
+          fieldName
+        )
     );
 
-  const categories =
-    getUniqueSortedValues(
-      rows.slice(1),
-      categoryIndex
-    );
-
-  fillFilterSelect(
-    'marketFilter',
-    markets,
-    '전체 마켓'
+  throw new Error(
+    '필수 헤더 누락: ' +
+      missingLabels.join(', ')
   );
-
-  fillFilterSelect(
-    'categoryFilter',
-    categories,
-    '전체 카테고리'
-  );
-
-  setDateFilterRange(
-    rows.slice(1),
-    dateIndex
-  );
-
-  bindFilterEvents();
 }
 
 
 /**
- * 날짜, 마켓, 카테고리, 모델 조건을 적용합니다.
+ * 한 행을 표준 데이터로 변환
  */
-function applyDashboardFilters() {
+function createStandardRow(
+  row,
+  columnMap,
+  excelRowNumber
+) {
+  const standardRow = {
+    excelRowNumber
+  };
+
+  Object
+    .entries(columnMap)
+    .forEach(
+      ([
+        fieldName,
+        columnIndex
+      ]) => {
+        standardRow[fieldName] =
+          columnIndex !== -1
+            ? normalizeCellValue(
+                row[columnIndex]
+              )
+            : '';
+      }
+    );
+
+  standardRow.normalized = {
+    saleNumber:
+      normalizeKey(
+        standardRow.saleNumber
+      ),
+
+    orderNumber:
+      normalizeKey(
+        standardRow.orderNumber
+      ),
+
+    onlineOrderNumber:
+      normalizeKey(
+        standardRow
+          .onlineOrderNumber
+      ),
+
+    directOrderNumber:
+      normalizeKey(
+        standardRow
+          .directOrderNumber
+      ),
+
+    productOrderNumber:
+      normalizeKey(
+        standardRow
+          .productOrderNumber
+      ),
+
+    model:
+      normalizeModel(
+        standardRow.model
+      ),
+
+    recipient:
+      normalizePersonName(
+        standardRow.recipient
+      ),
+
+    quantity:
+      toNumber(
+        standardRow.quantity
+      )
+  };
+
+  return standardRow;
+}
+
+
+/**
+ * 검수 시작
+ */
+function startOrderCheck() {
   if (
-    !Array.isArray(dashboardRows) ||
-    dashboardRows.length < 2
+    !uploadedData.purchase ||
+    !uploadedData.online ||
+    !uploadedData.direct
   ) {
+    setStatus(
+      'error',
+      '파일 3개를 모두 업로드해 주세요.'
+    );
+
     return;
   }
 
-  const headers =
-    dashboardRows[0].map(cleanAppCell);
-
-  const dateIndex =
-    headers.indexOf('주문일자');
-
-  const marketIndex =
-    headers.indexOf('마켓');
-
-  const categoryIndex =
-    headers.indexOf('카테고리');
-
-  const modelIndex =
-    headers.indexOf('모델');
-
-  const startDateValue =
-    document
-      .getElementById('startDate')
-      .value;
-
-  const endDateValue =
-    document
-      .getElementById('endDate')
-      .value;
-
-  const marketValue =
-    document
-      .getElementById('marketFilter')
-      .value;
-
-  const categoryValue =
-    document
-      .getElementById('categoryFilter')
-      .value;
-
-  const modelKeyword =
-    document
-      .getElementById('modelSearch')
-      .value
-      .trim()
-      .toUpperCase();
-
-  const filteredRows =
-    dashboardRows
-      .slice(1)
-      .filter(row => {
-        const rowDate =
-          normalizeAppDate(
-            row[dateIndex]
-          );
-
-        const rowMarket =
-          cleanAppCell(
-            row[marketIndex]
-          );
-
-        const rowCategory =
-          cleanAppCell(
-            row[categoryIndex]
-          );
-
-        const rowModel =
-          cleanAppCell(
-            row[modelIndex]
-          ).toUpperCase();
-
-        if (
-          startDateValue &&
-          rowDate &&
-          rowDate < startDateValue
-        ) {
-          return false;
-        }
-
-        if (
-          endDateValue &&
-          rowDate &&
-          rowDate > endDateValue
-        ) {
-          return false;
-        }
-
-        if (
-          marketValue &&
-          rowMarket !== marketValue
-        ) {
-          return false;
-        }
-
-        if (
-          categoryValue &&
-          rowCategory !== categoryValue
-        ) {
-          return false;
-        }
-
-        if (
-          modelKeyword &&
-          !rowModel.includes(modelKeyword)
-        ) {
-          return false;
-        }
-
-        return true;
-      });
-
-  filteredDashboardRows = [
-    dashboardRows[0],
-    ...filteredRows
-  ];
-
-  updateDashboardSummary(
-    filteredDashboardRows
+  setStatus(
+    'loading',
+    '업로드 파일 확인이 완료되었습니다. 검수 엔진을 준비합니다.'
   );
 
-  renderDashboardCharts(
-    filteredDashboardRows
-  );
+  /*
+   * 실제 비교 엔진은 다음 단계에서
+   * 이 위치에 연결합니다.
+   */
+  checkResults = [];
 
-  renderDashboardPreview(
-    filteredDashboardRows
-  );
-
-  updateDashboardStatus(
-    filteredRows.length
+  window.setTimeout(
+    () => {
+      setStatus(
+        'success',
+        '파일 3개를 정상적으로 불러왔습니다. 다음 단계에서 비교 검수를 연결합니다.'
+      );
+    },
+    300
   );
 }
 
 
 /**
- * KPI를 계산하고 표시합니다.
+ * 파일 3개가 모두 준비되면 버튼 활성화
  */
-function updateDashboardSummary(rows) {
-  const headers =
-    rows[0].map(cleanAppCell);
+function updateStartButtonState() {
+  const startCheckButton =
+    document.getElementById(
+      'startCheckButton'
+    );
 
-  const quantityIndex =
-    headers.indexOf('수량');
+  if (!startCheckButton) {
+    return;
+  }
 
-  const settlementIndex =
-    headers.indexOf('정산가');
+  const allFilesReady =
+    Boolean(
+      uploadedData.purchase &&
+      uploadedData.online &&
+      uploadedData.direct
+    );
 
-  const dataRows =
-    rows.slice(1);
+  startCheckButton.disabled =
+    !allFilesReady;
 
-  let totalSales = 0;
-  let totalQuantity = 0;
+  startCheckButton.textContent =
+    allFilesReady
+      ? '검수 시작'
+      : '파일 3개를 선택하세요';
+}
 
-  dataRows.forEach(row => {
-    totalQuantity +=
-      appToNumber(
-        row[quantityIndex]
-      );
 
-    totalSales +=
-      appToNumber(
-        row[settlementIndex]
-      );
+/**
+ * 초기화
+ */
+function resetOrderCheckDashboard() {
+  [
+    'purchase',
+    'online',
+    'direct'
+  ].forEach(fileType => {
+    uploadedFiles[fileType] =
+      null;
+
+    uploadedData[fileType] =
+      null;
   });
 
-  const totalOrders =
-    dataRows.length;
-
-  const averageOrderValue =
-    totalOrders > 0
-      ? Math.round(
-          totalSales /
-          totalOrders
-        )
-      : 0;
-
-  setText(
-    'totalSales',
-    formatAppNumber(totalSales) +
-    '원'
-  );
-
-  setText(
-    'totalOrders',
-    formatAppNumber(totalOrders) +
-    '건'
-  );
-
-  setText(
-    'totalQuantity',
-    formatAppNumber(totalQuantity) +
-    '개'
-  );
-
-  setText(
-    'averageOrderValue',
-    formatAppNumber(
-      averageOrderValue
-    ) + '원'
-  );
-}
-
-
-/**
- * 데이터 미리보기 표를 표시합니다.
- */
-function renderDashboardPreview(rows) {
-  const previewBody =
-    document.getElementById(
-      'previewBody'
-    );
-
-  if (!previewBody) {
-    return;
-  }
-
-  previewBody.innerHTML = '';
-
-  const headers =
-    rows[0].map(cleanAppCell);
-
-  const dateIndex =
-    headers.indexOf('주문일자');
-
-  const marketIndex =
-    headers.indexOf('마켓');
-
-  const categoryIndex =
-    headers.indexOf('카테고리');
-
-  const modelIndex =
-    headers.indexOf('모델');
-
-  const quantityIndex =
-    headers.indexOf('수량');
-
-  const settlementIndex =
-    headers.indexOf('정산가');
-
-  rows
-    .slice(1, 21)
-    .forEach(row => {
-      const tableRow =
-        document.createElement('tr');
-
-      const cells = [
-        cleanAppCell(
-          row[dateIndex]
-        ),
-        cleanAppCell(
-          row[marketIndex]
-        ),
-        cleanAppCell(
-          row[categoryIndex]
-        ),
-        cleanAppCell(
-          row[modelIndex]
-        ),
-        formatAppNumber(
-          appToNumber(
-            row[quantityIndex]
-          )
-        ),
-        formatAppNumber(
-          appToNumber(
-            row[settlementIndex]
-          )
-        )
-      ];
-
-      cells.forEach(cell => {
-        const tableCell =
-          document.createElement('td');
-
-        tableCell.textContent = cell;
-
-        tableRow.appendChild(
-          tableCell
-        );
-      });
-
-      previewBody.appendChild(
-        tableRow
+  [
+    'purchaseFile',
+    'onlineFile',
+    'directFile'
+  ].forEach(inputId => {
+    const input =
+      document.getElementById(
+        inputId
       );
-    });
-}
 
+    if (input) {
+      input.value = '';
+    }
+  });
 
-/**
- * 필터 초기화
- */
-function resetDashboardFilters() {
-  document
-    .getElementById('marketFilter')
-    .value = '';
-
-  document
-    .getElementById('categoryFilter')
-    .value = '';
-
-  document
-    .getElementById('modelSearch')
-    .value = '';
-
-  setDefaultDateValues();
-
-  applyDashboardFilters();
-}
-
-
-/**
- * 필터 이벤트 연결
- */
-function bindFilterEvents() {
-  const filterElementIds = [
-    'startDate',
-    'endDate',
-    'marketFilter',
-    'categoryFilter'
-  ];
-
-  filterElementIds.forEach(id => {
+  [
+    'purchaseFileName',
+    'onlineFileName',
+    'directFileName'
+  ].forEach(elementId => {
     const element =
-      document.getElementById(id);
+      document.getElementById(
+        elementId
+      );
 
     if (element) {
-      element.addEventListener(
-        'change',
-        applyDashboardFilters
+      element.textContent =
+        '선택된 파일 없음';
+
+      element.classList.remove(
+        'success',
+        'error'
       );
     }
   });
 
-  const modelSearch =
+  checkResults = [];
+  activeResultFilter = 'all';
+
+  const resultSection =
     document.getElementById(
-      'modelSearch'
+      'resultSection'
     );
 
-  if (modelSearch) {
-    modelSearch.addEventListener(
-      'input',
-      debounce(
-        applyDashboardFilters,
-        300
-      )
-    );
+  if (resultSection) {
+    resultSection.hidden = true;
   }
 
-  const resetButton =
+  const resultTableBody =
     document.getElementById(
-      'resetFilters'
+      'resultTableBody'
     );
 
-  if (resetButton) {
-    resetButton.addEventListener(
-      'click',
-      resetDashboardFilters
-    );
+  if (resultTableBody) {
+    resultTableBody.innerHTML = '';
   }
+
+  setStatus(
+    'ready',
+    '파일 3개를 업로드해 주세요.'
+  );
+
+  updateStartButtonState();
 }
 
 
 /**
- * 필터용 select 구성
+ * 결과 관련 이벤트
  */
-function fillFilterSelect(
-  elementId,
-  values,
-  firstLabel
-) {
-  const select =
-    document.getElementById(
-      elementId
-    );
+function bindResultEvents() {
+  document
+    .querySelectorAll(
+      '.result-filter-button'
+    )
+    .forEach(button => {
+      button.addEventListener(
+        'click',
+        () => {
+          activeResultFilter =
+            button.dataset.filter ||
+            'all';
 
-  if (!select) {
-    return;
-  }
+          document
+            .querySelectorAll(
+              '.result-filter-button'
+            )
+            .forEach(item =>
+              item.classList.toggle(
+                'active',
+                item === button
+              )
+            );
 
-  select.innerHTML = '';
-
-  const defaultOption =
-    document.createElement(
-      'option'
-    );
-
-  defaultOption.value = '';
-  defaultOption.textContent =
-    firstLabel;
-
-  select.appendChild(
-    defaultOption
-  );
-
-  values.forEach(value => {
-    const option =
-      document.createElement(
-        'option'
+          renderCheckResults();
+        }
       );
+    });
 
-    option.value = value;
-    option.textContent = value;
+  const resultSearch =
+    document.getElementById(
+      'resultSearch'
+    );
 
-    select.appendChild(option);
-  });
+  if (resultSearch) {
+    resultSearch.addEventListener(
+      'input',
+      renderCheckResults
+    );
+  }
+
+  const downloadButton =
+    document.getElementById(
+      'downloadResultButton'
+    );
+
+  if (downloadButton) {
+    downloadButton.addEventListener(
+      'click',
+      downloadCheckResults
+    );
+  }
 }
 
 
 /**
- * 날짜 필터 기본 범위 설정
+ * 결과 렌더링
+ * 실제 비교 엔진 추가 후 사용합니다.
  */
-function setDateFilterRange(
-  rows,
-  dateIndex
-) {
-  const dateValues =
-    rows
-      .map(row =>
-        normalizeAppDate(
-          row[dateIndex]
-        )
-      )
-      .filter(Boolean)
-      .sort();
+function renderCheckResults() {
+  const tableBody =
+    document.getElementById(
+      'resultTableBody'
+    );
 
-  if (dateValues.length === 0) {
+  if (!tableBody) {
     return;
   }
 
-  const startDate =
-    document.getElementById(
-      'startDate'
-    );
-
-  const endDate =
-    document.getElementById(
-      'endDate'
-    );
-
-  const minimumDate =
-    dateValues[0];
-
-  const maximumDate =
-    dateValues[
-      dateValues.length - 1
-    ];
-
-  startDate.min = minimumDate;
-  startDate.max = maximumDate;
-
-  endDate.min = minimumDate;
-  endDate.max = maximumDate;
-
-  startDate.dataset.defaultValue =
-    minimumDate;
-
-  endDate.dataset.defaultValue =
-    maximumDate;
-
-  setDefaultDateValues();
+  tableBody.innerHTML = '';
 }
 
 
 /**
- * 날짜를 전체 기간으로 되돌립니다.
+ * 결과 다운로드
+ * 실제 비교 엔진 추가 후 연결합니다.
  */
-function setDefaultDateValues() {
-  const startDate =
-    document.getElementById(
-      'startDate'
-    );
-
-  const endDate =
-    document.getElementById(
-      'endDate'
-    );
-
-  if (startDate) {
-    startDate.value =
-      startDate.dataset.defaultValue ||
-      '';
-  }
-
-  if (endDate) {
-    endDate.value =
-      endDate.dataset.defaultValue ||
-      '';
-  }
-}
-
-
-/**
- * 현재 표시 건수 메시지
- */
-function updateDashboardStatus(
-  rowCount
-) {
-  const statusBox =
-    document.getElementById(
-      'statusBox'
-    );
-
-  statusBox.className =
-    'status-box success';
-
-  statusBox.textContent =
-    '데이터 연결 완료 · 현재 조건 ' +
-    formatAppNumber(rowCount) +
-    '건';
-}
-
-
-/**
- * 중복을 제거하고 정렬합니다.
- */
-function getUniqueSortedValues(
-  rows,
-  columnIndex
-) {
-  if (columnIndex === -1) {
-    return [];
-  }
-
-  return [
-    ...new Set(
-      rows
-        .map(row =>
-          cleanAppCell(
-            row[columnIndex]
-          )
-        )
-        .filter(Boolean)
-    )
-  ].sort(
-    (a, b) =>
-      a.localeCompare(
-        b,
-        'ko'
-      )
-  );
-}
-
-
-/**
- * yyyy-mm-dd 날짜로 정리합니다.
- */
-function normalizeAppDate(value) {
-  const text =
-    cleanAppCell(value);
-
-  const match =
-    text.match(
-      /^(\d{4})[-./](\d{1,2})[-./](\d{1,2})/
-    );
-
-  if (!match) {
-    return '';
-  }
-
-  return (
-    match[1] +
-    '-' +
-    String(match[2]).padStart(
-      2,
-      '0'
-    ) +
-    '-' +
-    String(match[3]).padStart(
-      2,
-      '0'
-    )
-  );
-}
-
-
-/**
- * 숫자로 변환합니다.
- */
-function appToNumber(value) {
+function downloadCheckResults() {
   if (
-    typeof value === 'number' &&
-    Number.isFinite(value)
+    checkResults.length === 0
   ) {
-    return value;
+    alert(
+      '다운로드할 검수 결과가 없습니다.'
+    );
+
+    return;
+  }
+}
+
+
+/**
+ * 파일 선택 초기화
+ */
+function clearUploadedFile(
+  fileType,
+  fileNameId
+) {
+  uploadedFiles[fileType] =
+    null;
+
+  uploadedData[fileType] =
+    null;
+
+  const fileNameElement =
+    document.getElementById(
+      fileNameId
+    );
+
+  if (fileNameElement) {
+    fileNameElement.textContent =
+      '선택된 파일 없음';
+
+    fileNameElement.classList.remove(
+      'success',
+      'error'
+    );
   }
 
-  const text =
-    String(value || '')
-      .replace(/"/g, '')
-      .replace(/,/g, '')
-      .replace(/원/g, '')
-      .replace(/₩/g, '')
-      .replace(/\s/g, '');
-
-  const number =
-    Number(text);
-
-  return Number.isFinite(number)
-    ? number
-    : 0;
+  updateStartButtonState();
 }
 
 
 /**
- * 셀 문자 정리
+ * 파일명 정상 표시
  */
-function cleanAppCell(value) {
-  return String(value || '')
-    .replace(/^"|"$/g, '')
-    .trim();
-}
-
-
-/**
- * 숫자 표시 형식
- */
-function formatAppNumber(value) {
-  return new Intl.NumberFormat(
-    'ko-KR'
-  ).format(value);
-}
-
-
-/**
- * 텍스트 입력
- */
-function setText(
+function setFileNameDisplay(
   elementId,
-  value
+  fileName,
+  rowCount
 ) {
   const element =
     document.getElementById(
       elementId
     );
 
-  if (element) {
-    element.textContent = value;
+  if (!element) {
+    return;
   }
+
+  element.textContent =
+    '✓ ' +
+    fileName +
+    ' · ' +
+    formatNumber(rowCount) +
+    '행';
+
+  element.classList.remove(
+    'error'
+  );
+
+  element.classList.add(
+    'success'
+  );
 }
 
 
 /**
- * 입력이 끝난 뒤 실행하도록 지연합니다.
+ * 파일 오류 표시
  */
-function debounce(
-  callback,
-  waitMilliseconds
+function setFileNameError(
+  elementId,
+  message
 ) {
-  let timerId;
-
-  return function(...args) {
-    clearTimeout(timerId);
-
-    timerId = setTimeout(
-      () =>
-        callback.apply(
-          this,
-          args
-        ),
-      waitMilliseconds
+  const element =
+    document.getElementById(
+      elementId
     );
-  };
+
+  if (!element) {
+    return;
+  }
+
+  element.textContent =
+    '오류: ' +
+    message;
+
+  element.classList.remove(
+    'success'
+  );
+
+  element.classList.add(
+    'error'
+  );
+}
+
+
+/**
+ * 상태 표시
+ */
+function setStatus(
+  status,
+  message
+) {
+  const statusBox =
+    document.getElementById(
+      'statusBox'
+    );
+
+  if (!statusBox) {
+    return;
+  }
+
+  statusBox.className =
+    'status-box ' +
+    status;
+
+  statusBox.textContent =
+    message;
+}
+
+
+/**
+ * 파일 유형 이름
+ */
+function getFileTypeLabel(
+  fileType
+) {
+  return (
+    ORDER_CHECK_CONFIG
+      .fileTypes[fileType]
+      ?.label ||
+    fileType
+  );
+}
+
+
+/**
+ * 대표 헤더명
+ */
+function getPrimaryHeaderName(
+  fileType,
+  fieldName
+) {
+  const aliases =
+    ORDER_CHECK_CONFIG
+      .fileTypes[fileType]
+      ?.headers[fieldName];
+
+  return (
+    aliases &&
+    aliases[0]
+  )
+    ? aliases[0]
+    : fieldName;
+}
+
+
+/**
+ * 확장자 확인
+ */
+function getFileExtension(
+  fileName
+) {
+  return String(
+    fileName || ''
+  )
+    .split('.')
+    .pop()
+    .toLowerCase();
+}
+
+
+/**
+ * 헤더 정리
+ */
+function normalizeHeader(value) {
+  return String(
+    value ?? ''
+  )
+    .replace(/\s+/g, '')
+    .replace(/\r?\n/g, '')
+    .trim()
+    .toUpperCase();
+}
+
+
+/**
+ * 일반 문자 정리
+ */
+function normalizeText(value) {
+  return String(
+    value ?? ''
+  )
+    .replace(/\r?\n/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+
+/**
+ * 셀 값 정리
+ */
+function normalizeCellValue(value) {
+  if (
+    value instanceof Date &&
+    !Number.isNaN(
+      value.getTime()
+    )
+  ) {
+    return formatDate(value);
+  }
+
+  return normalizeText(value);
+}
+
+
+/**
+ * 주문번호·판매번호 정리
+ */
+function normalizeKey(value) {
+  return normalizeText(value)
+    .replace(/\.0$/, '')
+    .replace(/\s+/g, '')
+    .toUpperCase();
+}
+
+
+/**
+ * 모델명 정리
+ *
+ * 특정 자리 수로 자르지 않습니다.
+ */
+function normalizeModel(value) {
+  return normalizeText(value)
+    .toUpperCase()
+    .replace(/\s+/g, '')
+    .replace(/[-_/]/g, '');
+}
+
+
+/**
+ * 수령인 정리
+ */
+function normalizePersonName(value) {
+  return normalizeText(value)
+    .replace(/\s+/g, '')
+    .toUpperCase();
+}
+
+
+/**
+ * 숫자 변환
+ */
+function toNumber(value) {
+  const number =
+    Number(
+      String(
+        value ?? ''
+      )
+        .replace(/,/g, '')
+        .replace(/개/g, '')
+        .replace(/\s+/g, '')
+        .trim()
+    );
+
+  return Number.isFinite(
+    number
+  )
+    ? number
+    : 0;
+}
+
+
+/**
+ * 숫자 표시
+ */
+function formatNumber(value) {
+  return new Intl
+    .NumberFormat(
+      'ko-KR'
+    )
+    .format(
+      Number(value) || 0
+    );
+}
+
+
+/**
+ * 날짜 표시
+ */
+function formatDate(date) {
+  const year =
+    date.getFullYear();
+
+  const month =
+    String(
+      date.getMonth() + 1
+    ).padStart(
+      2,
+      '0'
+    );
+
+  const day =
+    String(
+      date.getDate()
+    ).padStart(
+      2,
+      '0'
+    );
+
+  return (
+    year +
+    '-' +
+    month +
+    '-' +
+    day
+  );
 }
