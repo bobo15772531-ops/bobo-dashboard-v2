@@ -76,10 +76,11 @@ const ORDER_CHECK_CONFIG = {
       },
 
       required: [
-        'saleNumber',
-        'model',
-        'quantity'
-      ]
+  'orderNumber',
+  'saleNumber',
+  'model',
+  'quantity'
+]
     },
 
     online: {
