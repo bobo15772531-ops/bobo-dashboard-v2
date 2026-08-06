@@ -75,7 +75,7 @@ const ORDER_CHECK_CONFIG = {
         ]
       },
 
-      required: [
+  required: [
   'orderNumber',
   'saleNumber',
   'model',
