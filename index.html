@@ -1,839 +1,447 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-
+  <meta charset="UTF-8" />
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"
-  >
-
-  <title>보보 판매 Dashboard V2</title>
-
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family:
-        "Noto Sans KR",
-        Arial,
-        sans-serif;
-
-      background: #f4f7fb;
-      color: #1f2937;
-    }
-
-    header {
-      background: #ffffff;
-      border-bottom: 1px solid #e5e7eb;
-      padding: 24px 32px;
-    }
-
-    .header-inner {
-      max-width: 1400px;
-      margin: 0 auto;
-
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 20px;
-    }
-
-    header h1 {
-      font-size: 26px;
-      margin-bottom: 6px;
-    }
-
-    header p {
-      color: #6b7280;
-      font-size: 14px;
-    }
-
-    .header-badge {
-      padding: 8px 13px;
-      border-radius: 999px;
-
-      background: #eff6ff;
-      color: #1d4ed8;
-
-      font-size: 13px;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-
-    main {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 28px;
-    }
-
-    .status-box {
-      background: #ffffff;
-      border-radius: 14px;
-      padding: 16px 20px;
-      margin-bottom: 20px;
-
-      box-shadow:
-        0 4px 16px rgba(0, 0, 0, 0.05);
-    }
-
-    .status-box.loading {
-      color: #1d4ed8;
-    }
-
-    .status-box.success {
-      color: #15803d;
-    }
-
-    .status-box.error {
-      color: #b91c1c;
-    }
-
-    .filter-panel {
-      background: #ffffff;
-      border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 22px;
-
-      box-shadow:
-        0 4px 18px rgba(0, 0, 0, 0.05);
-    }
-
-    .filter-panel h2 {
-      font-size: 18px;
-      margin-bottom: 16px;
-    }
-
-    .filter-grid {
-      display: grid;
-
-      grid-template-columns:
-        repeat(5, minmax(150px, 1fr))
-        auto;
-
-      gap: 14px;
-      align-items: end;
-    }
-
-    .filter-item label {
-      display: block;
-      margin-bottom: 7px;
-
-      color: #4b5563;
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .filter-item input,
-    .filter-item select {
-      width: 100%;
-      height: 42px;
-
-      border: 1px solid #d1d5db;
-      border-radius: 9px;
-
-      padding: 0 12px;
-
-      background: #ffffff;
-      color: #1f2937;
-    }
-
-    .filter-item input:focus,
-    .filter-item select:focus {
-      outline: none;
-      border-color: #2563eb;
-
-      box-shadow:
-        0 0 0 3px rgba(37, 99, 235, 0.12);
-    }
-
-    .reset-button {
-      height: 42px;
-
-      border: none;
-      border-radius: 9px;
-
-      padding: 0 20px;
-
-      background: #1f2937;
-      color: #ffffff;
-
-      font-size: 14px;
-      font-weight: 700;
-
-      cursor: pointer;
-      white-space: nowrap;
-    }
-
-    .reset-button:hover {
-      background: #111827;
-    }
-
-    .kpi-grid {
-      display: grid;
-
-      grid-template-columns:
-        repeat(4, minmax(180px, 1fr));
-
-      gap: 18px;
-      margin-bottom: 22px;
-    }
-
-    .kpi-card {
-      background: #ffffff;
-      padding: 22px;
-      border-radius: 16px;
-
-      box-shadow:
-        0 4px 18px rgba(0, 0, 0, 0.05);
-    }
-
-    .kpi-title {
-      color: #6b7280;
-      font-size: 14px;
-      margin-bottom: 10px;
-    }
-
-    .kpi-value {
-      font-size: 28px;
-      font-weight: 800;
-      word-break: keep-all;
-    }
-
-    .chart-grid {
-      display: grid;
-
-      grid-template-columns:
-        minmax(0, 1.6fr)
-        minmax(320px, 1fr);
-
-      gap: 18px;
-      margin-bottom: 22px;
-    }
-
-    .analysis-grid {
-      display: grid;
-
-      grid-template-columns:
-        minmax(0, 1.25fr)
-        minmax(460px, 1fr);
-
-      gap: 18px;
-      margin-bottom: 22px;
-    }
-
-    .panel {
-      background: #ffffff;
-      border-radius: 16px;
-      padding: 22px;
-      margin-bottom: 22px;
-
-      box-shadow:
-        0 4px 18px rgba(0, 0, 0, 0.05);
-    }
-
-    .chart-grid .panel,
-    .analysis-grid .panel {
-      margin-bottom: 0;
-    }
-
-    .panel-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 15px;
-      margin-bottom: 16px;
-    }
-
-    .panel h2 {
-      font-size: 18px;
-    }
-
-    .panel-note {
-      color: #9ca3af;
-      font-size: 12px;
-    }
-
-    .chart-box {
-      position: relative;
-      height: 360px;
-    }
-
-    .large-chart-box {
-      position: relative;
-      height: 440px;
-    }
-
-    .table-scroll {
-      overflow-x: auto;
-      max-height: 460px;
-    }
-
-    .data-table {
-      width: 100%;
-      border-collapse: collapse;
-      white-space: nowrap;
-    }
-
-    .data-table th,
-    .data-table td {
-      border-bottom: 1px solid #e5e7eb;
-      padding: 11px 12px;
-
-      text-align: left;
-      font-size: 13px;
-    }
-
-    .data-table th {
-      position: sticky;
-      top: 0;
-      z-index: 1;
-
-      background: #f8fafc;
-      color: #374151;
-    }
-
-    .data-table tbody tr:hover {
-      background: #f8fafc;
-    }
-
-    .ranking-table th:first-child,
-    .ranking-table td:first-child {
-      width: 55px;
-      text-align: center;
-    }
-
-    .ranking-table th:nth-child(n+3),
-    .ranking-table td:nth-child(n+3) {
-      text-align: right;
-    }
-
-    .market-table th:nth-child(1),
-    .market-table td:nth-child(1) {
-      width: 55px;
-      text-align: center;
-    }
-
-    .market-table th:nth-child(n+3),
-    .market-table td:nth-child(n+3) {
-      text-align: right;
-    }
-
-    .preview-table th:nth-child(5),
-    .preview-table th:nth-child(6),
-    .preview-table td:nth-child(5),
-    .preview-table td:nth-child(6) {
-      text-align: right;
-    }
-
-    .ranking-table tbody tr:nth-child(1) td:first-child,
-    .market-table tbody tr:nth-child(1) td:first-child {
-      color: #d97706;
-      font-weight: 800;
-    }
-
-    .ranking-table tbody tr:nth-child(2) td:first-child,
-    .market-table tbody tr:nth-child(2) td:first-child {
-      color: #64748b;
-      font-weight: 800;
-    }
-
-    .ranking-table tbody tr:nth-child(3) td:first-child,
-    .market-table tbody tr:nth-child(3) td:first-child {
-      color: #92400e;
-      font-weight: 800;
-    }
-
-    footer {
-      text-align: center;
-      padding: 25px;
-
-      color: #9ca3af;
-      font-size: 13px;
-    }
-
-    @media (max-width: 1200px) {
-      .filter-grid {
-        grid-template-columns:
-          repeat(3, 1fr);
-      }
-
-      .analysis-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .reset-button {
-        width: 100%;
-      }
-    }
-
-    @media (max-width: 1000px) {
-      .chart-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 900px) {
-      .kpi-grid {
-        grid-template-columns:
-          repeat(2, 1fr);
-      }
-
-      .header-inner {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-    }
-
-    @media (max-width: 700px) {
-      .filter-grid {
-        grid-template-columns:
-          repeat(2, 1fr);
-      }
-    }
-
-    @media (max-width: 560px) {
-      main {
-        padding: 16px;
-      }
-
-      header {
-        padding: 20px;
-      }
-
-      .filter-grid,
-      .kpi-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .chart-box,
-      .large-chart-box {
-        height: 310px;
-      }
-
-      .kpi-value {
-        font-size: 24px;
-      }
-    }
-  </style>
+  />
+
+  <title>
+    BOBO 발주 검수 Dashboard V1
+  </title>
+
+  <link
+    rel="stylesheet"
+    href="styles.css?v=20260806-1"
+  />
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"
+  ></script>
 </head>
 
 <body>
-
-  <header>
-    <div class="header-inner">
-
+  <header class="dashboard-header">
+    <div class="container header-inner">
       <div>
-        <h1>📊 보보 판매 Dashboard V2</h1>
+        <h1>
+          📦 BOBO 발주 검수 Dashboard V1
+        </h1>
 
         <p>
-          Google Sheets DashboardData 기반 판매 분석
+          발주서 · 온라인 · 직배 파일 비교 검수 시스템
         </p>
       </div>
 
       <div class="header-badge">
-        자동 데이터 연동
+        브라우저 내부 검수
       </div>
-
     </div>
   </header>
 
-  <main>
+  <main class="container dashboard-main">
 
     <section
       id="statusBox"
-      class="status-box loading"
+      class="status-box ready"
     >
-      데이터를 불러오는 중입니다.
+      파일 3개를 업로드해 주세요.
     </section>
 
-    <!-- 판매 데이터 필터 -->
-    <section class="filter-panel">
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>
+            검수 파일 업로드
+          </h2>
 
-      <h2>판매 데이터 필터</h2>
+          <p>
+            발주서, 온라인, 직배 파일을 각각 선택하세요.
+          </p>
+        </div>
+      </div>
 
-      <div class="filter-grid">
+      <div class="upload-grid">
 
-        <div class="filter-item">
-          <label for="startDate">
-            시작일
+        <article class="upload-card">
+          <div class="upload-number">
+            1
+          </div>
+
+          <h3>
+            발주서 파일
+          </h3>
+
+          <p>
+            기준 파일
+          </p>
+
+          <label
+            for="purchaseFile"
+            class="file-select-button"
+          >
+            파일 선택
           </label>
 
           <input
-            type="date"
-            id="startDate"
-          >
-        </div>
+            id="purchaseFile"
+            type="file"
+            accept=".xlsx,.xls"
+            hidden
+          />
 
-        <div class="filter-item">
-          <label for="endDate">
-            종료일
+          <div
+            id="purchaseFileName"
+            class="file-name"
+          >
+            선택된 파일 없음
+          </div>
+        </article>
+
+        <article class="upload-card">
+          <div class="upload-number">
+            2
+          </div>
+
+          <h3>
+            온라인 주문 파일
+          </h3>
+
+          <p>
+            온라인 주문 비교
+          </p>
+
+          <label
+            for="onlineFile"
+            class="file-select-button"
+          >
+            파일 선택
           </label>
 
           <input
-            type="date"
-            id="endDate"
+            id="onlineFile"
+            type="file"
+            accept=".xlsx,.xls"
+            hidden
+          />
+
+          <div
+            id="onlineFileName"
+            class="file-name"
           >
-        </div>
+            선택된 파일 없음
+          </div>
+        </article>
 
-        <div class="filter-item">
-          <label for="marketFilter">
-            마켓
-          </label>
+        <article class="upload-card">
+          <div class="upload-number">
+            3
+          </div>
 
-          <select id="marketFilter">
-            <option value="">
-              전체 마켓
-            </option>
-          </select>
-        </div>
+          <h3>
+            직배 주문 파일
+          </h3>
 
-        <div class="filter-item">
-          <label for="categoryFilter">
-            카테고리
-          </label>
+          <p>
+            직배 주문 비교
+          </p>
 
-          <select id="categoryFilter">
-            <option value="">
-              전체 카테고리
-            </option>
-          </select>
-        </div>
-
-        <div class="filter-item">
-          <label for="modelSearch">
-            모델 검색
+          <label
+            for="directFile"
+            class="file-select-button"
+          >
+            파일 선택
           </label>
 
           <input
-            type="text"
-            id="modelSearch"
-            placeholder="예: AW06, KQ85"
-            autocomplete="off"
-          >
-        </div>
+            id="directFile"
+            type="file"
+            accept=".xlsx,.xls"
+            hidden
+          />
 
+          <div
+            id="directFileName"
+            class="file-name"
+          >
+            선택된 파일 없음
+          </div>
+        </article>
+
+      </div>
+
+      <div class="action-row">
         <button
+          id="startCheckButton"
           type="button"
-          id="resetFilters"
-          class="reset-button"
+          class="primary-button"
+          disabled
         >
-          필터 초기화
+          검수 시작
         </button>
 
+        <button
+          id="resetCheckButton"
+          type="button"
+          class="secondary-button"
+        >
+          초기화
+        </button>
       </div>
     </section>
 
-    <!-- KPI -->
-    <section class="kpi-grid">
+    <section
+      id="resultSection"
+      hidden
+    >
 
-      <article class="kpi-card">
-        <div class="kpi-title">
-          총매출
-        </div>
+      <section class="kpi-grid">
 
-        <div
-          id="totalSales"
-          class="kpi-value"
+        <article
+          class="kpi-card"
+          data-result-filter="all"
         >
-          0원
-        </div>
-      </article>
+          <div class="kpi-title">
+            총 기준 주문
+          </div>
 
-      <article class="kpi-card">
-        <div class="kpi-title">
-          총주문수
-        </div>
+          <div
+            id="totalCount"
+            class="kpi-value"
+          >
+            0건
+          </div>
+        </article>
 
-        <div
-          id="totalOrders"
-          class="kpi-value"
+        <article
+          class="kpi-card success"
+          data-result-filter="normal"
         >
-          0건
-        </div>
-      </article>
+          <div class="kpi-title">
+            정상
+          </div>
 
-      <article class="kpi-card">
-        <div class="kpi-title">
-          판매수량
-        </div>
+          <div
+            id="normalCount"
+            class="kpi-value"
+          >
+            0건
+          </div>
+        </article>
 
-        <div
-          id="totalQuantity"
-          class="kpi-value"
+        <article
+          class="kpi-card error"
+          data-result-filter="missing"
         >
-          0개
-        </div>
-      </article>
+          <div class="kpi-title">
+            누락
+          </div>
 
-      <article class="kpi-card">
-        <div class="kpi-title">
-          평균객단가
-        </div>
+          <div
+            id="missingCount"
+            class="kpi-value"
+          >
+            0건
+          </div>
+        </article>
 
-        <div
-          id="averageOrderValue"
-          class="kpi-value"
+        <article
+          class="kpi-card warning"
+          data-result-filter="quantity"
         >
-          0원
+          <div class="kpi-title">
+            수량 불일치
+          </div>
+
+          <div
+            id="quantityErrorCount"
+            class="kpi-value"
+          >
+            0건
+          </div>
+        </article>
+
+        <article
+          class="kpi-card warning"
+          data-result-filter="model"
+        >
+          <div class="kpi-title">
+            모델 불일치
+          </div>
+
+          <div
+            id="modelErrorCount"
+            class="kpi-value"
+          >
+            0건
+          </div>
+        </article>
+
+        <article
+          class="kpi-card warning"
+          data-result-filter="duplicate"
+        >
+          <div class="kpi-title">
+            중복 의심
+          </div>
+
+          <div
+            id="duplicateCount"
+            class="kpi-value"
+          >
+            0건
+          </div>
+        </article>
+
+      </section>
+
+      <section class="panel">
+        <div class="result-toolbar">
+
+          <div class="result-filters">
+            <button
+              type="button"
+              class="result-filter-button active"
+              data-filter="all"
+            >
+              전체
+            </button>
+
+            <button
+              type="button"
+              class="result-filter-button"
+              data-filter="error"
+            >
+              오류만
+            </button>
+
+            <button
+              type="button"
+              class="result-filter-button"
+              data-filter="normal"
+            >
+              정상만
+            </button>
+
+            <button
+              type="button"
+              class="result-filter-button"
+              data-filter="missing"
+            >
+              누락
+            </button>
+
+            <button
+              type="button"
+              class="result-filter-button"
+              data-filter="quantity"
+            >
+              수량 불일치
+            </button>
+
+            <button
+              type="button"
+              class="result-filter-button"
+              data-filter="model"
+            >
+              모델 불일치
+            </button>
+
+            <button
+              type="button"
+              class="result-filter-button"
+              data-filter="duplicate"
+            >
+              중복
+            </button>
+          </div>
+
+          <div class="result-actions">
+            <input
+              id="resultSearch"
+              type="search"
+              placeholder="판매번호, 주문번호, 모델 검색"
+            />
+
+            <button
+              id="downloadResultButton"
+              type="button"
+              class="download-button"
+            >
+              검수 결과 다운로드
+            </button>
+          </div>
+
         </div>
-      </article>
 
-    </section>
-
-    <!-- 월별 / 카테고리별 분석 -->
-    <section class="chart-grid">
-
-      <article class="panel">
-
-        <div class="panel-header">
-          <h2>월별 매출</h2>
-
-          <span class="panel-note">
-            정산가 기준
-          </span>
-        </div>
-
-        <div class="chart-box">
-          <canvas id="monthlySalesChart"></canvas>
-        </div>
-
-      </article>
-
-      <article class="panel">
-
-        <div class="panel-header">
-          <h2>카테고리별 매출</h2>
-
-          <span class="panel-note">
-            선택 조건 자동 반영
-          </span>
-        </div>
-
-        <div class="chart-box">
-          <canvas id="categorySalesChart"></canvas>
-        </div>
-
-      </article>
-
-    </section>
-
-    <!-- 모델별 분석 -->
-    <section class="analysis-grid">
-
-      <article class="panel">
-
-        <div class="panel-header">
-          <h2>TOP 10 모델 판매수량</h2>
-
-          <span class="panel-note">
-            판매수량 기준
-          </span>
-        </div>
-
-        <div class="large-chart-box">
-          <canvas id="topModelChart"></canvas>
-        </div>
-
-      </article>
-
-      <article class="panel">
-
-        <div class="panel-header">
-          <h2>TOP 10 모델 순위표</h2>
-
-          <span class="panel-note">
-            현재 필터 조건 기준
+        <div class="summary-line">
+          <span id="resultCountText">
+            총 0건
           </span>
         </div>
 
         <div class="table-scroll">
-
-          <table class="data-table ranking-table">
-
+          <table class="result-table">
             <thead>
               <tr>
-                <th>순위</th>
-                <th>모델</th>
-                <th>판매수량</th>
-                <th>매출</th>
-                <th>평균판매가</th>
+                <th>
+                  판정
+                </th>
+
+                <th>
+                  오류 사유
+                </th>
+
+                <th>
+                  판매번호
+                </th>
+
+                <th>
+                  주문번호
+                </th>
+
+                <th>
+                  비교 대상
+                </th>
+
+                <th>
+                  발주 모델
+                </th>
+
+                <th>
+                  비교 모델
+                </th>
+
+                <th>
+                  발주 수량
+                </th>
+
+                <th>
+                  비교 수량
+                </th>
+
+                <th>
+                  발주서 행
+                </th>
               </tr>
             </thead>
 
-            <tbody id="topModelBody">
+            <tbody id="resultTableBody">
             </tbody>
-
           </table>
-
         </div>
-
-      </article>
-
-    </section>
-
-    <!-- 마켓별 분석 -->
-    <section class="analysis-grid">
-
-      <article class="panel">
-
-        <div class="panel-header">
-          <h2>마켓별 매출</h2>
-
-          <span class="panel-note">
-            매출 상위 15개 마켓
-          </span>
-        </div>
-
-        <div class="large-chart-box">
-          <canvas id="marketSalesChart"></canvas>
-        </div>
-
-      </article>
-
-      <article class="panel">
-
-        <div class="panel-header">
-          <h2>마켓별 실적 순위표</h2>
-
-          <span class="panel-note">
-            매출 기준
-          </span>
-        </div>
-
-        <div class="table-scroll">
-
-          <table class="data-table market-table">
-
-            <thead>
-              <tr>
-                <th>순위</th>
-                <th>마켓</th>
-                <th>주문수</th>
-                <th>판매수량</th>
-                <th>매출</th>
-                <th>평균객단가</th>
-              </tr>
-            </thead>
-
-            <tbody id="marketSalesBody">
-            </tbody>
-
-          </table>
-
-        </div>
-
-      </article>
-
-    </section>
-
-    <!-- 일별 매출 추이 -->
-<section class="panel">
-
-  <div class="panel-header">
-    <h2>일별 매출 및 판매수량 추이</h2>
-
-    <span class="panel-note">
-      현재 필터 조건 기준
-    </span>
-  </div>
-
-  <div class="large-chart-box">
-    <canvas id="dailySalesChart"></canvas>
-  </div>
-
-</section>
-
-    <!-- 요일별 판매 분석 -->
-<section class="panel">
-
-  <div class="panel-header">
-    <h2>요일별 매출 및 판매수량</h2>
-
-    <span class="panel-note">
-      월요일부터 일요일 기준
-    </span>
-  </div>
-
-  <div class="large-chart-box">
-    <canvas id="weekdaySalesChart"></canvas>
-  </div>
-
-</section>
-
-    <!-- 주차별 판매 분석 -->
-<section class="panel">
-
-  <div class="panel-header">
-    <h2>주차별 매출 및 판매수량</h2>
-
-    <span class="panel-note">
-      월요일 시작 기준
-    </span>
-  </div>
-
-  <div class="large-chart-box">
-    <canvas id="weeklySalesChart"></canvas>
-  </div>
-
-</section>
-
-    <!-- 데이터 미리보기 -->
-    <section class="panel">
-
-      <div class="panel-header">
-        <h2>데이터 미리보기</h2>
-
-        <span class="panel-note">
-          현재 조건 상위 20건
-        </span>
-      </div>
-
-      <div class="table-scroll">
-
-        <table class="data-table preview-table">
-
-          <thead>
-            <tr>
-              <th>주문일자</th>
-              <th>마켓</th>
-              <th>카테고리</th>
-              <th>모델</th>
-              <th>수량</th>
-              <th>정산가</th>
-            </tr>
-          </thead>
-
-          <tbody id="previewBody">
-          </tbody>
-
-        </table>
-
-      </div>
+      </section>
 
     </section>
 
   </main>
 
-  <footer>
-    보보 판매 Dashboard V2
+  <footer class="dashboard-footer">
+    BOBO 발주 검수 Dashboard V1
   </footer>
 
-<script src="config.js?v=20260803-1"></script>
-<script src="sheet.js?v=20260803-1"></script>
-<script src="charts.js?v=20260803-8"></script>
-<script src="app.js?v=20260803-1"></script>
-
-  <script>
-    startDashboard();
-  </script>
-
+  <script src="config.js?v=20260806-1"></script>
+  <script src="app.js?v=20260806-1"></script>
 </body>
 </html>
-
