@@ -477,3 +477,29 @@ body{
 
     color:#777;
 }
+
+.status-box.loading {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.status-box.success {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.status-box.error {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.file-name.success {
+  color: #047857;
+  font-weight: 700;
+}
+
+.file-name.error {
+  color: #dc2626;
+  font-weight: 700;
+  word-break: keep-all;
+}
