@@ -273,7 +273,8 @@ async function readExcelFile(
   const headers =
     rawRows[headerRowIndex]
       .map(normalizeHeader);
-  console.log(headers);
+  
+ console.log("읽은 헤더:", headers);
 
   const columnMap =
     createColumnMap(
