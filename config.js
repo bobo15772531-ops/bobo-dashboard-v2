@@ -157,12 +157,12 @@ const ORDER_CHECK_CONFIG = {
           '모델명'
         ],
 
-        quantity: [
-      '주문',
-      '주문수량',
-      '주문 수량',
-      '수량'
-    ],
+ quantity: [
+  '주문',
+  '주문수량',
+  '주문 수량',
+  '수량'
+],
       
 
         amount: [
